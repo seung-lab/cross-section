@@ -12,75 +12,75 @@ namespace xs3d {
 
 class Vec3 {
 public:
-    float x, y, z;
-    Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
+	float x, y, z;
+	Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
 
 	Vec3 operator+(const Vec3& other) const {
-        return Vec3(x + other.x, y + other.y, z + other.z);
-    }
+		return Vec3(x + other.x, y + other.y, z + other.z);
+	}
 	void operator+=(const Vec3& other) {
-        x += other.x;
-        y += other.y;
-        z += other.z;
-    }
+		x += other.x;
+		y += other.y;
+		z += other.z;
+	}
 	Vec3 operator+(const float other) const {
-        return Vec3(x + other, y + other, z + other);
-    }
+		return Vec3(x + other, y + other, z + other);
+	}
 	void operator+=(const float other) {
 		x += other;
 		y += other;
 		z += other;
-    }
-    Vec3 operator-() const {
-    	return Vec3(-x,-y,-z);
-    }
+	}
+	Vec3 operator-() const {
+		return Vec3(-x,-y,-z);
+	}
 	Vec3 operator-(const Vec3& other) const {
-        return Vec3(x - other.x, y - other.y, z - other.z);
-    }
-    Vec3 operator*(const float scalar) const {
-        return Vec3(x * scalar, y * scalar, z * scalar);
-    }
-    void operator*=(const float scalar) {
-    	x *= scalar;
-    	y *= scalar;
-    	z *= scalar;
-    }
-    Vec3 operator*(const Vec3& other) const {
-        return Vec3(x * other.x, y * other.y, z * other.z);
-    }
-    void operator*=(const Vec3& other) {
-    	x *= other.x;
-    	y *= other.y;
-    	z *= other.z;
-    }
-    Vec3 operator/(const float divisor) const {
-    	return Vec3(x/divisor, y/divisor, z/divisor);
-    }
-    void operator/=(const float divisor) {
-    	x /= divisor;
-    	y /= divisor;
-    	z /= divisor;
-    }
-    bool operator==(const Vec3& other) const {
-    	return x == other.x && y == other.y && z == other.z;
-    }
+		return Vec3(x - other.x, y - other.y, z - other.z);
+	}
+	Vec3 operator*(const float scalar) const {
+		return Vec3(x * scalar, y * scalar, z * scalar);
+	}
+	void operator*=(const float scalar) {
+		x *= scalar;
+		y *= scalar;
+		z *= scalar;
+	}
+	Vec3 operator*(const Vec3& other) const {
+		return Vec3(x * other.x, y * other.y, z * other.z);
+	}
+	void operator*=(const Vec3& other) {
+		x *= other.x;
+		y *= other.y;
+		z *= other.z;
+	}
+	Vec3 operator/(const float divisor) const {
+		return Vec3(x/divisor, y/divisor, z/divisor);
+	}
+	void operator/=(const float divisor) {
+		x /= divisor;
+		y /= divisor;
+		z /= divisor;
+	}
+	bool operator==(const Vec3& other) const {
+		return x == other.x && y == other.y && z == other.z;
+	}
 
-    float dot(const Vec3& o) const {
-    	return x * o.x + y * o.y + z * o.z;
-    }
-    float norm() const {
-    	return sqrt(x*x + y*y + z*z);
-    }
-    bool close(const Vec3& o) {
-    	return (*this - o).norm() < 1e-4;
-    }
-    Vec3 cross(const Vec3& o) const {
-    	return Vec3(
-    		y * o.z - z * o.y, 
-    		z * o.x - x * o.z,
-    		x * o.y - y * o.x
-    	);
-    }
+	float dot(const Vec3& o) const {
+		return x * o.x + y * o.y + z * o.z;
+	}
+	float norm() const {
+		return sqrt(x*x + y*y + z*z);
+	}
+	bool close(const Vec3& o) {
+		return (*this - o).norm() < 1e-4;
+	}
+	Vec3 cross(const Vec3& o) const {
+		return Vec3(
+			y * o.z - z * o.y, 
+			z * o.x - x * o.z,
+			x * o.y - y * o.x
+		);
+	}
 };
 
 uint32_t* compute_ccl(
@@ -145,12 +145,12 @@ uint32_t* compute_ccl(
 
 				const float eps = 0.5001;
 				const uint64_t zero = 0;
-		        uint64_t ipt_x = std::max(std::min(static_cast<uint64_t>(pt_x + eps), sx - 1), zero);
-		        uint64_t ipt_y = std::max(std::min(static_cast<uint64_t>(pt_y + eps), sy - 1), zero);
-		        uint64_t ipt_z = std::max(std::min(static_cast<uint64_t>(pt_z + eps), sz - 1), zero);
+				uint64_t ipt_x = std::max(std::min(static_cast<uint64_t>(pt_x + eps), sx - 1), zero);
+				uint64_t ipt_y = std::max(std::min(static_cast<uint64_t>(pt_y + eps), sy - 1), zero);
+				uint64_t ipt_z = std::max(std::min(static_cast<uint64_t>(pt_z + eps), sz - 1), zero);
 
-		        uint64_t pt_loc = ipt_x + sx * (ipt_y + sy * ipt_z);
-		        markup[pt_loc] = static_cast<uint8_t>(binimg[pt_loc]);
+				uint64_t pt_loc = ipt_x + sx * (ipt_y + sy * ipt_z);
+				markup[pt_loc] = static_cast<uint8_t>(binimg[pt_loc]);
 			}
 		}
 	}
@@ -244,36 +244,36 @@ float area_of_poly(
 	basis /= basis.norm();
 	
 	auto angularOrder = [&](const Vec3& a, const Vec3& b) {
-	    float cosine = a.dot(prime_spoke) / a.norm();
-	    float a_angle = std::acos(cosine);
+		float cosine = a.dot(prime_spoke) / a.norm();
+		float a_angle = std::acos(cosine);
 
-	    if (a.dot(basis) < 0) {
-	    	a_angle = -a_angle;
-	    }
+		if (a.dot(basis) < 0) {
+			a_angle = -a_angle;
+		}
 
-	    cosine = b.dot(prime_spoke) / b.norm();
-	    float b_angle = std::acos(cosine);
-	    
-	    if (b.dot(basis) < 0) {
-	    	b_angle = -b_angle;
-	    }
+		cosine = b.dot(prime_spoke) / b.norm();
+		float b_angle = std::acos(cosine);
+		
+		if (b.dot(basis) < 0) {
+			b_angle = -b_angle;
+		}
 
-	    return a_angle < b_angle;
+		return a_angle < b_angle;
 	};
 
-    std::sort(spokes.begin(), spokes.end(), angularOrder);
+	std::sort(spokes.begin(), spokes.end(), angularOrder);
 
-    for (Vec3& spoke : spokes) {
-    	spoke *= anisotropy;
-    }
+	for (Vec3& spoke : spokes) {
+		spoke *= anisotropy;
+	}
 
-    float area = 0.0;
-    for (int i = 0; i < spokes.size() - 1; i++) {
-    	area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
-    }
-    area += spokes[0].cross(spokes[spokes.size() - 1]).norm() / 2.0;
+	float area = 0.0;
+	for (int i = 0; i < spokes.size() - 1; i++) {
+		area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
+	}
+	area += spokes[0].cross(spokes[spokes.size() - 1]).norm() / 2.0;
 
-    return area;
+	return area;
 }
 
 void check_intersections(
