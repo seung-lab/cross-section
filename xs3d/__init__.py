@@ -3,8 +3,6 @@ from typing import Sequence, Optional
 from .twod import cross_sectional_area_2d
 import fastxs3d
 
-from .threed import cross_sectional_area_3d
-
 import numpy as np
 
 def cross_sectional_area(
