@@ -258,6 +258,10 @@ float area_of_poly(
 
     std::sort(spokes.begin(), spokes.end(), angularOrder);
 
+    for (Vec3& spoke : spokes) {
+    	spoke *= anisotropy;
+    }
+
     float area = 0.0;
     for (int i = 0; i < spokes.size() - 1; i++) {
     	area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
