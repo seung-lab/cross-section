@@ -148,7 +148,6 @@ def check_intersections(
 
     pts.append(nearest_pt)
 
-  # pts = np.round(np.array(pts), decimals=5)
   return np.unique(pts, axis=0)
 
 def cross_sectional_area_3d(
