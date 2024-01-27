@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
-#include <unordered_set>
 
 namespace xs3d {
 
@@ -118,7 +117,13 @@ uint32_t* compute_ccl(
 				// pt is the point on the plane
 				float pt_x = px + to_plane_x;
 
-				if (pt_x < fx - 0.5 || pt_x > fx + 0.5) {
+				// Why 0.505 instead of 0.5? There is a subtle
+				// geometry where the plane is slightly inclined
+				// but the closet point to the center is at just over 
+				// 0.5, but a substantial part of the plane still
+				// intersects the cube.
+				const float bounds = 0.505;
+				if (pt_x < fx - bounds || pt_x > fx + bounds) {
 					continue;
 				}
 
@@ -126,7 +131,7 @@ uint32_t* compute_ccl(
 				float to_plane_y = cp_y - proj_y;
 				float pt_y = py + to_plane_y;
 
-				if (pt_y < fy - 0.5 || pt_y > fy + 0.5) {
+				if (pt_y < fy - bounds || pt_y > fy + bounds) {
 					continue;
 				}
 
@@ -134,17 +139,17 @@ uint32_t* compute_ccl(
 				float to_plane_z = cp_z - proj_z;
 				float pt_z = pz + to_plane_z;
 
-				if (pt_z < fz - 0.5 || pt_z > fz + 0.5) {
+				if (pt_z < fz - bounds || pt_z > fz + bounds) {
 					continue;
 				}
 
-				const float eps = 0.0000001;
-		        uint64_t ipt_x = std::min(static_cast<uint64_t>(pt_x + eps), sx - 1);
-		        uint64_t ipt_y = std::min(static_cast<uint64_t>(pt_y + eps), sy - 1);
-		        uint64_t ipt_z = std::min(static_cast<uint64_t>(pt_z + eps), sz - 1);
+				const float eps = 0.5001;
+				const uint64_t zero = 0;
+		        uint64_t ipt_x = std::max(std::min(static_cast<uint64_t>(pt_x + eps), sx - 1), zero);
+		        uint64_t ipt_y = std::max(std::min(static_cast<uint64_t>(pt_y + eps), sy - 1), zero);
+		        uint64_t ipt_z = std::max(std::min(static_cast<uint64_t>(pt_z + eps), sz - 1), zero);
 
 		        uint64_t pt_loc = ipt_x + sx * (ipt_y + sy * ipt_z);
-
 		        markup[pt_loc] = static_cast<uint8_t>(binimg[pt_loc]);
 			}
 		}
