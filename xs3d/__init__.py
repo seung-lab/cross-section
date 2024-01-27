@@ -14,10 +14,11 @@ def cross_sectional_area(
   anisotropy:Optional[Sequence[float]] = None,
 ):
   if anisotropy is None:
-    anisotropy = np.array([ 1.0 ] * binimg.ndim, dtype=np.float32)
+    anisotropy = [ 1.0 ] * binimg.ndim
 
   pos = np.array(pos, dtype=np.float32)
   normal = np.array(normal, dtype=np.float32)
+  anisotropy = np.array(anisotropy, dtype=np.float32)
 
   if binimg.ndim == 2:
     return cross_sectional_area_2d(binimg, pos, normal, anisotropy)
