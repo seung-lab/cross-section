@@ -3,6 +3,7 @@
 
 #include "cc3d.hpp"
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -31,6 +32,9 @@ public:
 		y += other;
 		z += other;
     }
+    Vec3 operator-() const {
+    	return Vec3(-x,-y,-z);
+    }
 	Vec3 operator-(const Vec3& other) const {
         return Vec3(x - other.x, y - other.y, z - other.z);
     }
@@ -49,6 +53,14 @@ public:
     	x *= other.x;
     	y *= other.y;
     	z *= other.z;
+    }
+    Vec3 operator/(const float divisor) const {
+    	return Vec3(x/divisor, y/divisor, z/divisor);
+    }
+    void operator/=(const float divisor) {
+    	x /= divisor;
+    	y /= divisor;
+    	z /= divisor;
     }
     bool operator==(const Vec3& other) const {
     	return x == other.x && y == other.y && z == other.z;
@@ -173,6 +185,12 @@ float area_of_quad(
 	float norm2 = v2.norm();
 	float norm3 = v3.norm();
 
+  // remove the most distant point so we are
+  // not creating a faulty quad based on the 
+  // diagonal. Use a decision tree since it's
+  // both more efficient and less annoying 
+  // than some list operations.
+
 	if (norm1 > norm2) {
 		if (norm1 > norm3) {
 			return v2.cross(v3).norm();
@@ -195,6 +213,58 @@ float area_of_quad(
 	else {
 		return v1.cross(v2).norm();
 	}
+}
+
+float area_of_poly(
+	const std::vector<Vec3>& pts, 
+	const Vec3& normal,
+	const Vec3& anisotropy
+) {
+	
+	Vec3 centroid(0,0,0);
+
+	for (Vec3 pt : pts) {
+		centroid += pt;
+	}
+	centroid /= static_cast<float>(pts.size());
+
+	std::vector<Vec3> spokes;
+	for (Vec3 pt : pts) {
+		spokes.push_back(pt - centroid);
+	}
+
+	Vec3 prime_spoke = (pts[0] - centroid);
+
+	Vec3 basis = prime_spoke.cross(normal);
+	basis /= basis.norm();
+	
+	auto angularOrder = [&](const Vec3& a, const Vec3& b) {
+	    float cosine = a.dot(prime_spoke) / a.norm();
+	    float a_angle = std::acos(cosine);
+
+	    if (a.dot(basis) < 0) {
+	    	a_angle = -a_angle;
+	    }
+
+	    cosine = b.dot(prime_spoke) / b.norm();
+	    float b_angle = std::acos(cosine);
+	    
+	    if (b.dot(basis) < 0) {
+	    	b_angle = -b_angle;
+	    }
+
+	    return a_angle < b_angle;
+	};
+
+    std::sort(spokes.begin(), spokes.end(), angularOrder);
+
+    float area = 0.0;
+    for (int i = 0; i < spokes.size() - 1; i++) {
+    	area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
+    }
+    area += spokes[0].cross(spokes[spokes.size() - 1]).norm() / 2.0;
+
+    return area;
 }
 
 void check_intersections(
@@ -317,16 +387,14 @@ float cross_sectional_area(
 	}
 
 	const Vec3 anisotropy(wx, wy, wz);
-	float mag = sqrt(nx * nx + ny * ny + nz * nz);
-	float nhatx = nx / mag;
-	float nhaty = ny / mag;
-	float nhatz = nz / mag;
+	Vec3 nhat(nx, ny, nz);
+	nhat /= nhat.norm();
 
 	uint32_t* ccl = compute_ccl(
 		binimg, 
 		sx, sy, sz, 
 		px, py, pz, 
-		nhatx, nhaty, nhatz
+		nhat.x, nhat.y, nhat.z
 	);
 
 	const uint32_t label = ccl[loc];
@@ -348,20 +416,30 @@ float cross_sectional_area(
 					pts, 
 					x, y, z,
 					px, py, pz,
-					nhatx, nhaty, nhatz
+					nhat.x, nhat.y, nhat.z
 				);
 
-				if (pts.size() < 3) {
+				const auto size = pts.size();
+
+				if (size < 3) {
+					// no contact, point, or line which have zero area
 					continue;
 				}
-				else if (pts.size() > 4) {
+				else if (size > 6) {
+					printf("size: %d", size);
+					for (auto pt : pts) {
+						printf("p %.2f %.2f %.2f\n", pt.x, pt.y, pt.z);
+					}
 					return -1.0;
 				}
-				else if (pts.size() == 3) {
+				else if (size == 3) {
 					total += area_of_triangle(pts, anisotropy);
 				}
-				else { // 4
+				else if (size == 4) { 
 					total += area_of_quad(pts, anisotropy);
+				}
+				else { // 5, 6
+					total += area_of_poly(pts, nhat, anisotropy);
 				}
 			}
 		}
