@@ -20,6 +20,12 @@ def cross_sectional_area(
   normal = np.array(normal, dtype=np.float32)
   anisotropy = np.array(anisotropy, dtype=np.float32)
 
+  if binimg.dtype != bool:
+    raise ValueError(f"A boolean image is required. Got: {binimg.dtype}")
+
+  if np.any(anisotropy <= 0):
+    raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
+
   if binimg.ndim == 2:
     return cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
