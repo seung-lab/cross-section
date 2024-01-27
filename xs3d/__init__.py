@@ -1,18 +1,26 @@
-from typing import Tuple
+from typing import Sequence, Optional
 
 from .twod import cross_sectional_area_2d
+import fastxs3d
+
 from .threed import cross_sectional_area_3d
 
 import numpy as np
 
 def cross_sectional_area(
   binimg:np.ndarray,
-  pos:Tuple[int, int],
-  vec:Tuple[float, float],
-  anisotropy:Tuple[float, float] = [ 1.0, 1.0 ],
+  pos:Sequence[int],
+  normal:Sequence[float],
+  anisotropy:Optional[Sequence[float]] = None,
 ):
+  if anisotropy is None:
+    anisotropy = np.array([ 1.0 ] * binimg.ndim, dtype=np.float32)
+
+  pos = np.array(pos, dtype=np.float32)
+  normal = np.array(normal, dtype=np.float32)
+
   if binimg.ndim == 2:
-    return cross_sectional_area_2d(binimg, pos, vec, anisotropy)
+    return cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
-    return cross_sectional_area_3d(binimg, pos, vec, anisotropy)
+    return fastxs3d.xsa(binimg, pos, normal, anisotropy)
   raise ValueError("dimensions not supported")

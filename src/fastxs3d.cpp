@@ -13,7 +13,8 @@ namespace py = pybind11;
 float xsa(
 	const py::array_t<uint8_t> &binimg,
 	const py::array_t<float> &point,
-	const py::array_t<float> &normal
+	const py::array_t<float> &normal,
+	const py::array_t<float> &anisotropy
 ) {
 	const uint64_t sx = binimg.shape()[0];
 	const uint64_t sy = binimg.ndim() < 2
@@ -27,7 +28,8 @@ float xsa(
 		binimg.data(),
 		sx, sy, sz,
 		point.at(0), point.at(1), point.at(2),
-		normal.at(0), normal.at(1), normal.at(2)
+		normal.at(0), normal.at(1), normal.at(2),
+		anisotropy.at(0), anisotropy.at(1), anisotropy.at(2)
 	);
 }
 

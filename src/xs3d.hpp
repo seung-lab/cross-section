@@ -10,6 +10,68 @@
 
 namespace xs3d {
 
+class Vec3 {
+public:
+    float x, y, z;
+    Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
+
+	Vec3 operator+(const Vec3& other) const {
+        return Vec3(x + other.x, y + other.y, z + other.z);
+    }
+	void operator+=(const Vec3& other) {
+        x += other.x;
+        y += other.y;
+        z += other.z;
+    }
+	Vec3 operator+(const float other) const {
+        return Vec3(x + other, y + other, z + other);
+    }
+	void operator+=(const float other) {
+		x += other;
+		y += other;
+		z += other;
+    }
+	Vec3 operator-(const Vec3& other) const {
+        return Vec3(x - other.x, y - other.y, z - other.z);
+    }
+    Vec3 operator*(const float scalar) const {
+        return Vec3(x * scalar, y * scalar, z * scalar);
+    }
+    void operator*=(const float scalar) {
+    	x *= scalar;
+    	y *= scalar;
+    	z *= scalar;
+    }
+    Vec3 operator*(const Vec3& other) const {
+        return Vec3(x * other.x, y * other.y, z * other.z);
+    }
+    void operator*=(const Vec3& other) {
+    	x *= other.x;
+    	y *= other.y;
+    	z *= other.z;
+    }
+    bool operator==(const Vec3& other) const {
+    	return x == other.x && y == other.y && z == other.z;
+    }
+
+    float dot(const Vec3& o) const {
+    	return x * o.x + y * o.y + z * o.z;
+    }
+    float norm() const {
+    	return sqrt(x*x + y*y + z*z);
+    }
+    bool close(const Vec3& o) {
+    	return (*this - o).norm() < 1e-4;
+    }
+    Vec3 cross(const Vec3& o) const {
+    	return Vec3(
+    		y * o.z - z * o.y, 
+    		z * o.x - x * o.z,
+    		x * o.y - y * o.x
+    	);
+    }
+};
+
 uint32_t* compute_ccl(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -84,80 +146,28 @@ uint32_t* compute_ccl(
 	return ccl;
 }
 
-class Vec3 {
-public:
-    float x, y, z;
-    Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
-
-	Vec3 operator+(const Vec3& other) const {
-        return Vec3(x + other.x, y + other.y, z + other.z);
-    }
-	void operator+=(const Vec3& other) {
-        x += other.x;
-        y += other.y;
-        z += other.z;
-    }
-	Vec3 operator+(const float other) const {
-        return Vec3(x + other, y + other, z + other);
-    }
-	void operator+=(const float other) {
-		x += other;
-		y += other;
-		z += other;
-    }
-	Vec3 operator-(const Vec3& other) const {
-        return Vec3(x - other.x, y - other.y, z - other.z);
-    }
-    Vec3 operator*(const float scalar) const {
-        return Vec3(x * scalar, y * scalar, z * scalar);
-    }
-    void operator*=(const float scalar) {
-    	x *= scalar;
-    	y *= scalar;
-    	z *= scalar;
-    }
-    Vec3 operator*(const Vec3& other) const {
-        return Vec3(x * other.x, y * other.y, z * other.z);
-    }
-    bool operator==(const Vec3& other) const {
-    	return x == other.x && y == other.y && z == other.z;
-    }
-
-    float dot(const Vec3& o) const {
-    	return x * o.x + y * o.y + z * o.z;
-    }
-    float norm() const {
-    	return sqrt(x*x + y*y + z*z);
-    }
-    bool close(const Vec3& o) {
-    	return (*this - o).norm() < 1e-4;
-    }
-    Vec3 cross(const Vec3& o) const {
-    	return Vec3(
-    		y * o.z - z * o.y, 
-    		z * o.x - x * o.z,
-    		x * o.y - y * o.x
-    	);
-    }
-};
-
-struct Vec3Hash {
-    std::size_t operator()(const Vec3& point) const {
-        return std::hash<float>()(point.x) ^ std::hash<float>()(point.y) ^ std::hash<float>()(point.z);
-    }
-};
-
-float area_of_triangle(const std::vector<Vec3>& pts) {
+float area_of_triangle(
+	const std::vector<Vec3>& pts, 
+	const Vec3& anisotropy
+) {
 	Vec3 v1 = pts[1] - pts[0];
+	v1 *= anisotropy;
 	Vec3 v2 = pts[1] - pts[0];
+	v2 *= anisotropy;
 	Vec3 v3 = v1.cross(v2);
 	return v3.norm() / 2.0;
 }
 
-float area_of_quad(const std::vector<Vec3>& pts) {
+float area_of_quad(
+	const std::vector<Vec3>& pts, 
+	const Vec3& anisotropy
+) {
 	Vec3 v1 = pts[1] - pts[0];
+	v1 *= anisotropy;
 	Vec3 v2 = pts[2] - pts[0];
+	v2 *= anisotropy;
 	Vec3 v3 = pts[3] - pts[0];
+	v3 *= anisotropy;
 
 	float norm1 = v1.norm();
 	float norm2 = v2.norm();
@@ -306,6 +316,7 @@ float cross_sectional_area(
 		return 0.0;
 	}
 
+	const Vec3 anisotropy(wx, wy, wz);
 	float mag = sqrt(nx * nx + ny * ny + nz * nz);
 	float nhatx = nx / mag;
 	float nhaty = ny / mag;
@@ -347,10 +358,10 @@ float cross_sectional_area(
 					return -1.0;
 				}
 				else if (pts.size() == 3) {
-					total += area_of_triangle(pts);
+					total += area_of_triangle(pts, anisotropy);
 				}
 				else { // 4
-					total += area_of_quad(pts);
+					total += area_of_quad(pts, anisotropy);
 				}
 			}
 		}
