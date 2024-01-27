@@ -129,6 +129,9 @@ public:
     float norm() const {
     	return sqrt(x*x + y*y + z*z);
     }
+    bool close(const Vec3& o) {
+    	return (*this - o).norm() < 1e-4;
+    }
     Vec3 cross(const Vec3& o) const {
     	return Vec3(
     		y * o.z - z * o.y, 
@@ -215,7 +218,7 @@ void check_intersections(
 
 	Vec3 pipe_points[12] = {
 		c[0], c[1], c[2], c[3],
-		c[0], c[4], c[2], c[5],
+		c[0], c[1], c[4], c[5],
 		c[0], c[2], c[4], c[6]
 	};
 
@@ -225,18 +228,27 @@ void check_intersections(
 	Vec3 pos(px,py,pz);
 	Vec3 normal(nx,ny,nz);
 
-	std::unordered_set<Vec3, Vec3Hash> uniq;
+	auto inlist = [&](const Vec3& pt){
+		for (Vec3& p : pts) {
+			if (p.close(pt)) {
+				return true;
+			}
+		}
+		return false;
+	};
 
 	for (int i = 0; i < 12; i++) {
 		Vec3 pipe = pipes[i];
 		Vec3 corner = pipe_points[i];
 		corner += xyz;
 		
-		Vec3 cur_vec = corner - pos;
+		Vec3 cur_vec = pos - corner;
 		float proj = cur_vec.dot(normal);
 
 		if (proj == 0) {
-			pts.push_back(corner);
+			if (!inlist(corner)) {
+				pts.push_back(corner);
+			}
 			continue;
 		}
 
@@ -248,7 +260,7 @@ void check_intersections(
 			continue;
 		}
 
-		float t = proj2 / proj;
+		float t = proj / proj2;
 		Vec3 nearest_pt = corner + pipe * t;
 
 		if (nearest_pt.x > (x+0.5) || nearest_pt.x < (x-0.5)) {
@@ -261,11 +273,8 @@ void check_intersections(
 			continue;
 		}
 
-		auto it = uniq.find(nearest_pt);
-
-		if (it == uniq.end()) {
+		if (!inlist(nearest_pt)) {
 			pts.push_back(nearest_pt);
-			uniq.insert(nearest_pt);
 		}
 	}
 }
