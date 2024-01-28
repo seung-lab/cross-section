@@ -24,6 +24,8 @@ def cross_sectional_area(
   if np.any(anisotropy <= 0):
     raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
 
+  binimg = np.asfortranarray(binimg)
+
   if binimg.ndim == 2:
     return cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
