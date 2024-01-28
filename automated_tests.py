@@ -39,4 +39,24 @@ def test_single_voxel():
 		assert area <= np.sqrt(2)
 
 
+def test_ccl():
+	img = np.zeros([10,10,10], dtype=bool, order="F")
+
+	img[:3,:3,:3] = True
+	img[6:,6:,:3] = True
+
+	area = xs3d.cross_sectional_area(img, [1,1,1], [0,0,1])
+	assert area == 9
+
+	area = xs3d.cross_sectional_area(img, [7,7,1], [0,0,1])
+	assert area == 16
+
+	area = xs3d.cross_sectional_area(img, [7,7,5], [0,0,1])
+	assert area == 0
+
+
+
+
+
+
 
