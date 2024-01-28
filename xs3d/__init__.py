@@ -24,6 +24,9 @@ def cross_sectional_area(
   if np.any(anisotropy <= 0):
     raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
 
+  if np.all(normal == 0):
+    raise ValueError("normal vector must not be a null vector (all zeros).")
+
   binimg = np.asfortranarray(binimg)
 
   if binimg.ndim == 2:
