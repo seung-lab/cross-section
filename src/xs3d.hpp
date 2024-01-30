@@ -90,7 +90,7 @@ uint32_t* compute_ccl(
 	const float nx, const float ny, const float nz 	// plane normal vector
 ) {
 
-	uint8_t* markup = new uint8_t[sx*sy*sz]();
+	std::unique_ptr<uint8_t[]> markup(new uint8_t[sx*sy*sz]());
 
 	for (uint64_t z = 0; z < sz; z++) {
 		for (uint64_t y = 0; y < sy; y++) {
@@ -158,7 +158,6 @@ uint32_t* compute_ccl(
 	uint32_t* ccl = cc3d::connected_components3d<uint8_t, uint32_t>(
 		markup, sx, sy, sz
 	);
-	delete[] markup;
 
 	return ccl;
 }
@@ -435,10 +434,6 @@ float cross_sectional_area(
 					continue;
 				}
 				else if (size > 6) {
-					printf("size: %d", size);
-					for (auto pt : pts) {
-						printf("p %.2f %.2f %.2f\n", pt.x, pt.y, pt.z);
-					}
 					return -1.0;
 				}
 				else if (size == 3) {
