@@ -78,6 +78,7 @@ def test_sphere():
 		return [ np.cos(theta), np.sin(theta), 0 ]
 
 	pos = (offset, offset, offset)
+	smoothness = ((r-1)**2) / (r**2)
 
 	prev_area = xs3d.cross_sectional_area(img, pos, [1,0,0])
 
@@ -88,7 +89,7 @@ def test_sphere():
 		assert area > np.pi * (r-1.5) * (r-1.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
-		assert ratio < 0.04
+		assert ratio < smoothness
 
 		prev_area = area
 
@@ -107,7 +108,7 @@ def test_sphere():
 		assert area > np.pi * (r-1.5) * (r-1.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
-		assert ratio < 0.04
+		assert ratio < smoothness
 
 		prev_area = area
 
