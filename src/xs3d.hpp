@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <stack>
 #include <vector>
 
 namespace xs3d {
@@ -267,7 +268,7 @@ float area_of_poly(
 	}
 
 	float area = 0.0;
-	for (int i = 0; i < spokes.size() - 1; i++) {
+	for (uint64_t i = 0; i < spokes.size() - 1; i++) {
 		area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
 	}
 	area += spokes[0].cross(spokes[spokes.size() - 1]).norm() / 2.0;
@@ -367,6 +368,148 @@ void check_intersections(
 	}
 }
 
+float compute_ccl_by_sampling(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const float px, const float py, const float pz, // plane position
+	const float nx, const float ny, const float nz, // plane normal vector
+	const float wx, const float wy, const float wz, // anisotrpy
+	const uint64_t frequency = 1
+) {
+	std::unique_ptr<uint8_t[]> ccl(new uint8_t[sx*sy*sz]());
+
+	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
+
+	// maximum possible size of plane multiplied by sampling frequency
+	uint64_t psx = diagonal * frequency;
+	uint64_t psy = psx;
+
+	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
+
+	const Vec3 anisotropy(wx, wy, wz);
+	Vec3 normal(nx,ny,nz);
+	Vec3 pos(px,py,pz);
+
+	Vec3 ihat = Vec3(1,0,0);
+	Vec3 jhat = Vec3(0,1,0);
+
+	Vec3 basis1(1,0,0);
+	if (normal.dot(ihat) == 0) {
+		basis1 = normal.cross(jhat);
+		basis1 /= basis1.norm();
+	}
+	else {
+		basis1 = normal.cross(ihat);
+		basis1 /= basis1.norm();
+	}
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	basis1 /= static_cast<float>(frequency);
+	basis2 /= static_cast<float>(frequency);
+
+	std::stack<size_t> stack;
+	uint64_t plane_pos_x = (diagonal * frequency) / 2;
+	uint64_t plane_pos_y = (diagonal * frequency) / 2;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+	stack.push(ploc);
+
+	float total = 0.0;
+
+	std::vector<Vec3> pts;
+	pts.reserve(12);
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+			continue;
+		}
+		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+
+		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		);
+
+		if (!binimg[loc]) {
+			continue;
+		}
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+
+		if (ccl[loc] == 0) {
+			check_intersections(
+				pts, 
+				static_cast<uint64_t>(cur.x), static_cast<uint64_t>(cur.y), static_cast<uint64_t>(cur.z),
+				px, py, pz,
+				nx, ny, nz
+			);
+
+			const auto size = pts.size();
+
+			if (size < 3) {
+				// no contact, point, or line which have zero area
+				continue;
+			}
+			else if (size > 6) {
+				printf("size: %d", size);
+				for (auto pt : pts) {
+					printf("p %.2f %.2f %.2f\n", pt.x, pt.y, pt.z);
+				}
+				return -1.0;
+			}
+			else if (size == 3) {
+				total += area_of_triangle(pts, anisotropy);
+			}
+			else if (size == 4) { 
+				total += area_of_quad(pts, anisotropy);
+			}
+			else { // 5, 6
+				total += area_of_poly(pts, normal, anisotropy);
+			}
+
+			ccl[loc] = 1;
+		}
+	}
+
+	return total;
+}
+
 float cross_sectional_area(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -398,58 +541,80 @@ float cross_sectional_area(
 	Vec3 nhat(nx, ny, nz);
 	nhat /= nhat.norm();
 
-	uint32_t* ccl = compute_ccl(
+	uint64_t hertz = 2;
+
+	float total = compute_ccl_by_sampling(
 		binimg, 
 		sx, sy, sz, 
 		px, py, pz, 
-		nhat.x, nhat.y, nhat.z
+		nhat.x, nhat.y, nhat.z,
+		wx, wy, wz,
+		hertz
 	);
+	
 
-	const uint32_t label = ccl[loc];
 
-	std::vector<Vec3> pts;
-	pts.reserve(12);
+// 	for (int z =0; z < sz; z++) {
+// 	for (int y =0; y < sy; y++) {
+// 	for (int x =0; x < sx; x++) {
+// 		printf("%d, ", ccl[x + sx * y + sx * sy * z]);
+// 	}
+// 	printf("\n");
+// }
+// 	printf("\n");
+// }
 
-	float total = 0.0;
+	// const auto label = ccl[loc];
 
-	for (uint64_t z = 0; z < sz; z++) {
-		for (uint64_t y = 0; y < sy; y++) {
-			for (uint64_t x = 0; x < sx; x++) {
-				loc = x + sx * (y + sy * z);
-				if (ccl[loc] != label) {
-					continue;
-				}
+	// std::vector<Vec3> pts;
+	// pts.reserve(12);
 
-				check_intersections(
-					pts, 
-					x, y, z,
-					px, py, pz,
-					nhat.x, nhat.y, nhat.z
-				);
+	// float total = 0.0;
 
-				const auto size = pts.size();
+	// for (uint64_t z = 0; z < sz; z++) {
+	// 	for (uint64_t y = 0; y < sy; y++) {
+	// 		for (uint64_t x = 0; x < sx; x++) {
+	// 			loc = x + sx * (y + sy * z);
+	// 			if (ccl[loc] != label) {
+	// 				continue;
+	// 			}
 
-				if (size < 3) {
-					// no contact, point, or line which have zero area
-					continue;
-				}
-				else if (size > 6) {
-					return -1.0;
-				}
-				else if (size == 3) {
-					total += area_of_triangle(pts, anisotropy);
-				}
-				else if (size == 4) { 
-					total += area_of_quad(pts, anisotropy);
-				}
-				else { // 5, 6
-					total += area_of_poly(pts, nhat, anisotropy);
-				}
-			}
-		}
-	}
+	// 			total += 1.0;
 
-	delete[] ccl;
+	// 			// check_intersections(
+	// 			// 	pts, 
+	// 			// 	x, y, z,
+	// 			// 	px, py, pz,
+	// 			// 	nhat.x, nhat.y, nhat.z
+	// 			// );
+
+	// 			// const auto size = pts.size();
+
+	// 			// if (size < 3) {
+	// 			// 	// no contact, point, or line which have zero area
+	// 			// 	continue;
+	// 			// }
+	// 			// else if (size > 6) {
+	// 			// 	printf("size: %d", size);
+	// 			// 	for (auto pt : pts) {
+	// 			// 		printf("p %.2f %.2f %.2f\n", pt.x, pt.y, pt.z);
+	// 			// 	}
+	// 			// 	return -1.0;
+	// 			// }
+	// 			// else if (size == 3) {
+	// 			// 	total += area_of_triangle(pts, anisotropy);
+	// 			// }
+	// 			// else if (size == 4) { 
+	// 			// 	total += area_of_quad(pts, anisotropy);
+	// 			// }
+	// 			// else { // 5, 6
+	// 			// 	total += area_of_poly(pts, nhat, anisotropy);
+	// 			// }
+	// 		}
+	// 	}
+	// }
+
+	// delete[] ccl;
 
 	return total;
 }
