@@ -55,6 +55,73 @@ def test_ccl():
 	assert area == 0
 
 
+def test_sphere():
+	d = 100
+	r = d/2
+	img = np.zeros([125,125,125], dtype=bool, order="F")
+	offset = 63
+
+	def dist(x,y,z):
+		nonlocal r
+		x = x - offset
+		y = y - offset
+		z = z - offset
+		return np.sqrt(x*x + y*y + z*z)
+
+	for z in range(img.shape[2]):
+		for y in range(img.shape[1]):
+			for x in range(img.shape[0]):
+				if dist(x,y,z) <= r:
+					img[x,y,z] = True
+
+	def angle(theta):
+		return [ np.cos(theta), np.sin(theta), 0 ]
+
+	pos = (offset, offset, offset)
+
+	prev_area = xs3d.cross_sectional_area(img, pos, [1,0,0])
+
+	for theta in range(0,50):
+		normal = angle(theta / 50 * 2 * np.pi)
+		area = xs3d.cross_sectional_area(img, pos, normal)
+
+		assert area > np.pi * (r-1.5) * (r-1.5)
+		assert area <= np.pi * (r+0.5) * (r+0.5)
+		ratio = abs(area - prev_area) / area
+		assert ratio < 0.04
+
+		prev_area = area
+
+
+	def angle2(theta):
+		return [ 0, np.cos(theta), np.sin(theta) ]
+
+	pos = (offset, offset, offset)
+
+	prev_area = xs3d.cross_sectional_area(img, pos, [1,0,0])
+
+	for theta in range(0,50):
+		normal = angle2(theta / 50 * 2 * np.pi)
+		area = xs3d.cross_sectional_area(img, pos, normal)
+
+		assert area > np.pi * (r-1.5) * (r-1.5)
+		assert area <= np.pi * (r+0.5) * (r+0.5)
+		ratio = abs(area - prev_area) / area
+		assert ratio < 0.04
+
+		prev_area = area
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
