@@ -156,7 +156,7 @@ uint32_t* compute_ccl(
 	}
 
 	uint32_t* ccl = cc3d::connected_components3d<uint8_t, uint32_t>(
-		markup, sx, sy, sz
+		markup.get(), sx, sy, sz
 	);
 
 	return ccl;
