@@ -13,7 +13,7 @@ else:
   ]
 
 setuptools.setup(
-  setup_requires=['pbr','pybind11','numpy'],
+  setup_requires=['pbr','pybind11','numpy','connected-components-3d'],
   cmdclass={"build_ext": build_ext},
   extras_require={},
   ext_modules=[
