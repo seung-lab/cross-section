@@ -580,6 +580,8 @@ float cross_sectional_area(
 		sx, sy, sz, 
 		pos, normal, anisotropy
 	);
+}
+
 };
 
 #endif
