@@ -82,6 +82,12 @@ public:
 			x * o.y - y * o.x
 		);
 	}
+	bool is_null() const {
+		return x == 0 && y == 0 && z == 0;
+	}
+	void print(const std::string &name) {
+		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
+	}
 };
 
 uint32_t* compute_ccl(
@@ -393,15 +399,11 @@ float compute_ccl_by_sampling(
 	Vec3 ihat = Vec3(1,0,0);
 	Vec3 jhat = Vec3(0,1,0);
 
-	Vec3 basis1(1,0,0);
-	if (normal.dot(ihat) == 0) {
+	Vec3 basis1 = normal.cross(ihat);
+	if (basis1.is_null()) {
 		basis1 = normal.cross(jhat);
-		basis1 /= basis1.norm();
 	}
-	else {
-		basis1 = normal.cross(ihat);
-		basis1 /= basis1.norm();
-	}
+	basis1 /= basis1.norm();
 
 	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
@@ -409,11 +411,12 @@ float compute_ccl_by_sampling(
 	basis1 /= static_cast<float>(frequency);
 	basis2 /= static_cast<float>(frequency);
 
-	std::stack<size_t> stack;
 	uint64_t plane_pos_x = (diagonal * frequency) / 2;
 	uint64_t plane_pos_y = (diagonal * frequency) / 2;
 
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<size_t> stack;
 	stack.push(ploc);
 
 	float total = 0.0;
