@@ -9,7 +9,7 @@
 #include <stack>
 #include <vector>
 
-namespace xs3d {
+namespace {
 
 class Vec3 {
 public:
@@ -89,85 +89,6 @@ public:
 		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
 	}
 };
-
-uint32_t* compute_ccl(
-	const uint8_t* binimg,
-	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	const float px, const float py, const float pz, // plane position
-	const float nx, const float ny, const float nz 	// plane normal vector
-) {
-
-	std::unique_ptr<uint8_t[]> markup(new uint8_t[sx*sy*sz]());
-
-	for (uint64_t z = 0; z < sz; z++) {
-		for (uint64_t y = 0; y < sy; y++) {
-			for (uint64_t x = 0; x < sx; x++) {
-				uint64_t loc = x + sx * (y + sy * z);
-
-				if (!binimg[loc]) {
-					continue;
-				}
-
-				float fx = static_cast<float>(x);
-				float fy = static_cast<float>(y);
-				float fz = static_cast<float>(z);
-
-				// cp_x = current to plane x element
-				float cp_x = fx - px;
-				float cp_y = fy - py;
-				float cp_z = fz - pz;
-
-				float dot_product = cp_x * nx + cp_y * ny + cp_z * nz;
-				float proj_x = dot_product * nx;
-				float to_plane_x = cp_x - proj_x;
-
-				// pt is the point on the plane
-				float pt_x = px + to_plane_x;
-
-				// Why 0.505 instead of 0.5? There is a subtle
-				// geometry where the plane is slightly inclined
-				// but the closet point to the center is at just over 
-				// 0.5, but a substantial part of the plane still
-				// intersects the cube.
-				const float bounds = 0.505;
-				if (pt_x < fx - bounds || pt_x > fx + bounds) {
-					continue;
-				}
-
-				float proj_y = dot_product * ny;
-				float to_plane_y = cp_y - proj_y;
-				float pt_y = py + to_plane_y;
-
-				if (pt_y < fy - bounds || pt_y > fy + bounds) {
-					continue;
-				}
-
-				float proj_z = dot_product * nz;
-				float to_plane_z = cp_z - proj_z;
-				float pt_z = pz + to_plane_z;
-
-				if (pt_z < fz - bounds || pt_z > fz + bounds) {
-					continue;
-				}
-
-				const float eps = 0.5001;
-				const uint64_t zero = 0;
-				uint64_t ipt_x = std::max(std::min(static_cast<uint64_t>(pt_x + eps), sx - 1), zero);
-				uint64_t ipt_y = std::max(std::min(static_cast<uint64_t>(pt_y + eps), sy - 1), zero);
-				uint64_t ipt_z = std::max(std::min(static_cast<uint64_t>(pt_z + eps), sz - 1), zero);
-
-				uint64_t pt_loc = ipt_x + sx * (ipt_y + sy * ipt_z);
-				markup[pt_loc] = static_cast<uint8_t>(binimg[pt_loc]);
-			}
-		}
-	}
-
-	uint32_t* ccl = cc3d::connected_components3d<uint8_t, uint32_t>(
-		markup.get(), sx, sy, sz
-	);
-
-	return ccl;
-}
 
 float area_of_triangle(
 	const std::vector<Vec3>& pts, 
@@ -542,6 +463,10 @@ float cross_sectional_area_helper(
 
 	return total;
 }
+
+};
+
+namespace xs3d {
 
 float cross_sectional_area(
 	const uint8_t* binimg,
