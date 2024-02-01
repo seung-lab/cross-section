@@ -299,9 +299,9 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	for (float x = -1; x <= 1; x++) {
+	for (float z = -1; z <= 1; z++) {
 		for (float y = -1; y <= 1; y++) {
-			for (float z = -1; z <= 1; z++) {
+			for (float x = -1; x <= 1; x++) {
 				
 				Vec3 delta(x,y,z);
 				delta += cur;
@@ -392,7 +392,7 @@ float cross_sectional_area_helper(
 
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
 
-	std::stack<size_t> stack;
+	std::stack<uint64_t> stack;
 	stack.push(ploc);
 
 	float total = 0.0;
