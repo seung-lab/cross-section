@@ -440,6 +440,11 @@ float cross_sectional_area_helper(
 		uint64_t left = ploc - 1;
 		uint64_t right = ploc + 1;
 
+		uint64_t upleft = ploc - psx - 1; 
+		uint64_t downleft = ploc + psx - 1;
+		uint64_t upright = ploc - psx + 1;
+		uint64_t downright = ploc + psx + 1;
+
 		if (x > 0 && !visited[left]) {
 			stack.push(left);
 		}
@@ -451,6 +456,19 @@ float cross_sectional_area_helper(
 		}
 		if (y < psy - 1 && !visited[down]) {
 			stack.push(down);
+		}
+
+		if (x > 0 && y > 0 && !visited[upleft]) {
+			stack.push(upleft);
+		}
+		if (x < psx - 1 && y > 0 && !visited[upright]) {
+			stack.push(upright);
+		}
+		if (x > 0 && y < psy - 1 && !visited[downleft]) {
+			stack.push(downleft);
+		}
+		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
+			stack.push(downright);
 		}
 
 		total += calc_area_at_point(
