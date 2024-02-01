@@ -293,7 +293,7 @@ void check_intersections(
 
 float calc_area_at_point(
 	const uint8_t* binimg,
-	std::unique_ptr<uint8_t[]>& ccl,
+	std::vector<bool>& ccl,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
 	const Vec3& normal, const Vec3& anisotropy,
@@ -367,7 +367,7 @@ float cross_sectional_area_helper(
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy // anisotropy
 ) {
-	std::unique_ptr<uint8_t[]> ccl(new uint8_t[sx*sy*sz]());
+	std::vector<bool> ccl(sx * sy * sz);
 
 	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
 
