@@ -379,15 +379,14 @@ float compute_ccl_by_sampling(
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const float px, const float py, const float pz, // plane position
 	const float nx, const float ny, const float nz, // plane normal vector
-	const float wx, const float wy, const float wz, // anisotrpy
-	const uint64_t frequency = 1
+	const float wx, const float wy, const float wz // anisotropy
 ) {
 	std::unique_ptr<uint8_t[]> ccl(new uint8_t[sx*sy*sz]());
 
 	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
 
 	// maximum possible size of plane multiplied by sampling frequency
-	uint64_t psx = diagonal * frequency;
+	uint64_t psx = diagonal;
 	uint64_t psy = psx;
 
 	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
@@ -408,11 +407,8 @@ float compute_ccl_by_sampling(
 	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
 
-	basis1 /= static_cast<float>(frequency);
-	basis2 /= static_cast<float>(frequency);
-
-	uint64_t plane_pos_x = (diagonal * frequency) / 2;
-	uint64_t plane_pos_y = (diagonal * frequency) / 2;
+	uint64_t plane_pos_x = diagonal / 2;
+	uint64_t plane_pos_y = diagonal / 2;
 
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
 
@@ -475,10 +471,18 @@ float compute_ccl_by_sampling(
 			stack.push(down);
 		}
 
-		if (ccl[loc] == 0) {
+		for (float plusx = -1; plusx <= 1; plusx++) {
+			for (float plusy = -1; plusy <= 1; plusy++) {
+				for (float plusz = -1; plusz <= 1; plusz++) {
+
+					uint64_t dloc = static_cast<uint64_t>(cur.x + plusx) + sx * (
+			static_cast<uint64_t>(cur.y + plusy) + sy * static_cast<uint64_t>(cur.z + plusz)
+		);
+
+		if (ccl[dloc] == 0) {
 			check_intersections(
 				pts, 
-				static_cast<uint64_t>(cur.x), static_cast<uint64_t>(cur.y), static_cast<uint64_t>(cur.z),
+				static_cast<uint64_t>(cur.x + plusx), static_cast<uint64_t>(cur.y + plusy), static_cast<uint64_t>(cur.z + plusz),
 				px, py, pz,
 				nx, ny, nz
 			);
@@ -490,10 +494,6 @@ float compute_ccl_by_sampling(
 				continue;
 			}
 			else if (size > 6) {
-				printf("size: %d", size);
-				for (auto pt : pts) {
-					printf("p %.2f %.2f %.2f\n", pt.x, pt.y, pt.z);
-				}
 				return -1.0;
 			}
 			else if (size == 3) {
@@ -506,8 +506,10 @@ float compute_ccl_by_sampling(
 				total += area_of_poly(pts, normal, anisotropy);
 			}
 
-			ccl[loc] = 1;
+			ccl[dloc] = 1;
 		}
+
+	}}}
 	}
 
 	return total;
@@ -519,7 +521,7 @@ float cross_sectional_area(
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
-	const float wx = 1.0, const float wy = 1.0, const float wz = 1.0
+	const float wx, const float wy, const float wz
 ) {
 
 	if (px < 0 || px >= sx) {
@@ -544,29 +546,14 @@ float cross_sectional_area(
 	Vec3 nhat(nx, ny, nz);
 	nhat /= nhat.norm();
 
-	uint64_t hertz = 2;
-
 	float total = compute_ccl_by_sampling(
 		binimg, 
 		sx, sy, sz, 
 		px, py, pz, 
 		nhat.x, nhat.y, nhat.z,
-		wx, wy, wz,
-		hertz
+		wx, wy, wz
 	);
 	
-
-
-// 	for (int z =0; z < sz; z++) {
-// 	for (int y =0; y < sy; y++) {
-// 	for (int x =0; x < sx; x++) {
-// 		printf("%d, ", ccl[x + sx * y + sx * sy * z]);
-// 	}
-// 	printf("\n");
-// }
-// 	printf("\n");
-// }
-
 	// const auto label = ccl[loc];
 
 	// std::vector<Vec3> pts;
