@@ -285,8 +285,7 @@ float area_of_poly(
 void check_intersections(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
-	const float px, const float py, const float pz,
-	const float nx, const float ny, const float nz
+	const Vec3& pos, const Vec3& normal
 ) {
 	pts.clear();
 
@@ -319,9 +318,6 @@ void check_intersections(
 
 	Vec3 xyz(x,y,z);
 	xyz += -0.5;
-
-	Vec3 pos(px,py,pz);
-	Vec3 normal(nx,ny,nz);
 
 	auto inlist = [&](const Vec3& pt){
 		for (Vec3& p : pts) {
@@ -374,12 +370,81 @@ void check_intersections(
 	}
 }
 
-float compute_ccl_by_sampling(
+float calc_area_at_point(
+	const uint8_t* binimg,
+	std::unique_ptr<uint8_t[]>& ccl,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts
+) {
+	float subtotal = 0.0;
+
+	for (float x = -1; x <= 1; x++) {
+		for (float y = -1; y <= 1; y++) {
+			for (float z = -1; z <= 1; z++) {
+				
+				Vec3 delta(x,y,z);
+				delta += cur;
+
+				if (delta.x < 0 || delta.y < 0 || delta.z < 0) {
+					continue;
+				}
+				else if (delta.x >= sx || delta.y >= sy || delta.z >= sz) {
+					continue;
+				}
+
+				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				);
+
+				if (!binimg[loc]) {
+					continue;
+				}
+
+				if (ccl[loc] == 0) {
+					check_intersections(
+						pts, 
+						static_cast<uint64_t>(delta.x), 
+						static_cast<uint64_t>(delta.y), 
+						static_cast<uint64_t>(delta.z),
+						pos, normal
+					);
+
+					const auto size = pts.size();
+
+					if (size < 3) {
+						// no contact, point, or line which have zero area
+						continue;
+					}
+					else if (size > 6) {
+						throw new std::runtime_error("Invalid polygon.");
+					}
+					else if (size == 3) {
+						subtotal += area_of_triangle(pts, anisotropy);
+					}
+					else if (size == 4) { 
+						subtotal += area_of_quad(pts, anisotropy);
+					}
+					else { // 5, 6
+						subtotal += area_of_poly(pts, normal, anisotropy);
+					}
+
+					ccl[loc] = 1;
+				}
+			}
+		}
+	}
+
+	return subtotal;
+}
+
+float cross_sectional_area_helper(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	const float px, const float py, const float pz, // plane position
-	const float nx, const float ny, const float nz, // plane normal vector
-	const float wx, const float wy, const float wz // anisotropy
+	const Vec3& pos, // plane position
+	const Vec3& normal, // plane normal vector
+	const Vec3& anisotropy // anisotropy
 ) {
 	std::unique_ptr<uint8_t[]> ccl(new uint8_t[sx*sy*sz]());
 
@@ -390,10 +455,6 @@ float compute_ccl_by_sampling(
 	uint64_t psy = psx;
 
 	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
-
-	const Vec3 anisotropy(wx, wy, wz);
-	Vec3 normal(nx,ny,nz);
-	Vec3 pos(px,py,pz);
 
 	Vec3 ihat = Vec3(1,0,0);
 	Vec3 jhat = Vec3(0,1,0);
@@ -471,45 +532,12 @@ float compute_ccl_by_sampling(
 			stack.push(down);
 		}
 
-		for (float plusx = -1; plusx <= 1; plusx++) {
-			for (float plusy = -1; plusy <= 1; plusy++) {
-				for (float plusz = -1; plusz <= 1; plusz++) {
-
-					uint64_t dloc = static_cast<uint64_t>(cur.x + plusx) + sx * (
-			static_cast<uint64_t>(cur.y + plusy) + sy * static_cast<uint64_t>(cur.z + plusz)
+		total += calc_area_at_point(
+			binimg, ccl,
+			sx, sy, sz,
+			cur, pos, normal, anisotropy,
+			pts
 		);
-
-		if (ccl[dloc] == 0) {
-			check_intersections(
-				pts, 
-				static_cast<uint64_t>(cur.x + plusx), static_cast<uint64_t>(cur.y + plusy), static_cast<uint64_t>(cur.z + plusz),
-				px, py, pz,
-				nx, ny, nz
-			);
-
-			const auto size = pts.size();
-
-			if (size < 3) {
-				// no contact, point, or line which have zero area
-				continue;
-			}
-			else if (size > 6) {
-				return -1.0;
-			}
-			else if (size == 3) {
-				total += area_of_triangle(pts, anisotropy);
-			}
-			else if (size == 4) { 
-				total += area_of_quad(pts, anisotropy);
-			}
-			else { // 5, 6
-				total += area_of_poly(pts, normal, anisotropy);
-			}
-
-			ccl[dloc] = 1;
-		}
-
-	}}}
 	}
 
 	return total;
@@ -542,73 +570,16 @@ float cross_sectional_area(
 		return 0.0;
 	}
 
+	const Vec3 pos(px, py, pz);
 	const Vec3 anisotropy(wx, wy, wz);
-	Vec3 nhat(nx, ny, nz);
-	nhat /= nhat.norm();
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
 
-	float total = compute_ccl_by_sampling(
+	return cross_sectional_area_helper(
 		binimg, 
 		sx, sy, sz, 
-		px, py, pz, 
-		nhat.x, nhat.y, nhat.z,
-		wx, wy, wz
+		pos, normal, anisotropy
 	);
-	
-	// const auto label = ccl[loc];
-
-	// std::vector<Vec3> pts;
-	// pts.reserve(12);
-
-	// float total = 0.0;
-
-	// for (uint64_t z = 0; z < sz; z++) {
-	// 	for (uint64_t y = 0; y < sy; y++) {
-	// 		for (uint64_t x = 0; x < sx; x++) {
-	// 			loc = x + sx * (y + sy * z);
-	// 			if (ccl[loc] != label) {
-	// 				continue;
-	// 			}
-
-	// 			total += 1.0;
-
-	// 			// check_intersections(
-	// 			// 	pts, 
-	// 			// 	x, y, z,
-	// 			// 	px, py, pz,
-	// 			// 	nhat.x, nhat.y, nhat.z
-	// 			// );
-
-	// 			// const auto size = pts.size();
-
-	// 			// if (size < 3) {
-	// 			// 	// no contact, point, or line which have zero area
-	// 			// 	continue;
-	// 			// }
-	// 			// else if (size > 6) {
-	// 			// 	printf("size: %d", size);
-	// 			// 	for (auto pt : pts) {
-	// 			// 		printf("p %.2f %.2f %.2f\n", pt.x, pt.y, pt.z);
-	// 			// 	}
-	// 			// 	return -1.0;
-	// 			// }
-	// 			// else if (size == 3) {
-	// 			// 	total += area_of_triangle(pts, anisotropy);
-	// 			// }
-	// 			// else if (size == 4) { 
-	// 			// 	total += area_of_quad(pts, anisotropy);
-	// 			// }
-	// 			// else { // 5, 6
-	// 			// 	total += area_of_poly(pts, nhat, anisotropy);
-	// 			// }
-	// 		}
-	// 	}
-	// }
-
-	// delete[] ccl;
-
-	return total;
-}
-
 };
 
 #endif
