@@ -54,6 +54,12 @@ def test_ccl():
 	area = xs3d.cross_sectional_area(img, [7,7,5], [0,0,1])
 	assert area == 0
 
+	img[:4,:4,:4] = True
+	img[1,1,1] = False
+
+	area = xs3d.cross_sectional_area(img, [0,1,1], [0,0,1])
+	assert area == 15
+
 
 def test_sphere():
 	d = 100
