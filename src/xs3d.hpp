@@ -1,8 +1,6 @@
 #ifndef __XS3D_HPP__
 #define __XS3D_HPP__
 
-#include "cc3d.hpp"
-
 #include <cmath>
 #include <cstdint>
 #include <memory>
