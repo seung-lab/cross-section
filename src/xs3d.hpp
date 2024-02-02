@@ -1,14 +1,13 @@
 #ifndef __XS3D_HPP__
 #define __XS3D_HPP__
 
-#include "cc3d.hpp"
-
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <stack>
 #include <vector>
 
-namespace xs3d {
+namespace {
 
 class Vec3 {
 public:
@@ -81,86 +80,13 @@ public:
 			x * o.y - y * o.x
 		);
 	}
-};
-
-uint32_t* compute_ccl(
-	const uint8_t* binimg,
-	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	const float px, const float py, const float pz, // plane position
-	const float nx, const float ny, const float nz 	// plane normal vector
-) {
-
-	std::unique_ptr<uint8_t[]> markup(new uint8_t[sx*sy*sz]());
-
-	for (uint64_t z = 0; z < sz; z++) {
-		for (uint64_t y = 0; y < sy; y++) {
-			for (uint64_t x = 0; x < sx; x++) {
-				uint64_t loc = x + sx * (y + sy * z);
-
-				if (!binimg[loc]) {
-					continue;
-				}
-
-				float fx = static_cast<float>(x);
-				float fy = static_cast<float>(y);
-				float fz = static_cast<float>(z);
-
-				// cp_x = current to plane x element
-				float cp_x = fx - px;
-				float cp_y = fy - py;
-				float cp_z = fz - pz;
-
-				float dot_product = cp_x * nx + cp_y * ny + cp_z * nz;
-				float proj_x = dot_product * nx;
-				float to_plane_x = cp_x - proj_x;
-
-				// pt is the point on the plane
-				float pt_x = px + to_plane_x;
-
-				// Why 0.505 instead of 0.5? There is a subtle
-				// geometry where the plane is slightly inclined
-				// but the closet point to the center is at just over 
-				// 0.5, but a substantial part of the plane still
-				// intersects the cube.
-				const float bounds = 0.505;
-				if (pt_x < fx - bounds || pt_x > fx + bounds) {
-					continue;
-				}
-
-				float proj_y = dot_product * ny;
-				float to_plane_y = cp_y - proj_y;
-				float pt_y = py + to_plane_y;
-
-				if (pt_y < fy - bounds || pt_y > fy + bounds) {
-					continue;
-				}
-
-				float proj_z = dot_product * nz;
-				float to_plane_z = cp_z - proj_z;
-				float pt_z = pz + to_plane_z;
-
-				if (pt_z < fz - bounds || pt_z > fz + bounds) {
-					continue;
-				}
-
-				const float eps = 0.5001;
-				const uint64_t zero = 0;
-				uint64_t ipt_x = std::max(std::min(static_cast<uint64_t>(pt_x + eps), sx - 1), zero);
-				uint64_t ipt_y = std::max(std::min(static_cast<uint64_t>(pt_y + eps), sy - 1), zero);
-				uint64_t ipt_z = std::max(std::min(static_cast<uint64_t>(pt_z + eps), sz - 1), zero);
-
-				uint64_t pt_loc = ipt_x + sx * (ipt_y + sy * ipt_z);
-				markup[pt_loc] = static_cast<uint8_t>(binimg[pt_loc]);
-			}
-		}
+	bool is_null() const {
+		return x == 0 && y == 0 && z == 0;
 	}
-
-	uint32_t* ccl = cc3d::connected_components3d<uint8_t, uint32_t>(
-		markup.get(), sx, sy, sz
-	);
-
-	return ccl;
-}
+	void print(const std::string &name) {
+		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
+	}
+};
 
 float area_of_triangle(
 	const std::vector<Vec3>& pts, 
@@ -267,7 +193,7 @@ float area_of_poly(
 	}
 
 	float area = 0.0;
-	for (int i = 0; i < spokes.size() - 1; i++) {
+	for (uint64_t i = 0; i < spokes.size() - 1; i++) {
 		area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
 	}
 	area += spokes[0].cross(spokes[spokes.size() - 1]).norm() / 2.0;
@@ -278,8 +204,7 @@ float area_of_poly(
 void check_intersections(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
-	const float px, const float py, const float pz,
-	const float nx, const float ny, const float nz
+	const Vec3& pos, const Vec3& normal
 ) {
 	pts.clear();
 
@@ -312,9 +237,6 @@ void check_intersections(
 
 	Vec3 xyz(x,y,z);
 	xyz += -0.5;
-
-	Vec3 pos(px,py,pz);
-	Vec3 normal(nx,ny,nz);
 
 	auto inlist = [&](const Vec3& pt){
 		for (Vec3& p : pts) {
@@ -367,13 +289,208 @@ void check_intersections(
 	}
 }
 
+float calc_area_at_point(
+	const uint8_t* binimg,
+	std::vector<bool>& ccl,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts
+) {
+	float subtotal = 0.0;
+
+	for (float z = -1; z <= 1; z++) {
+		for (float y = -1; y <= 1; y++) {
+			for (float x = -1; x <= 1; x++) {
+				
+				Vec3 delta(x,y,z);
+				delta += cur;
+
+				if (delta.x < 0 || delta.y < 0 || delta.z < 0) {
+					continue;
+				}
+				else if (delta.x >= sx || delta.y >= sy || delta.z >= sz) {
+					continue;
+				}
+
+				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				);
+
+				if (!binimg[loc]) {
+					continue;
+				}
+
+				if (ccl[loc] == 0) {
+					check_intersections(
+						pts, 
+						static_cast<uint64_t>(delta.x), 
+						static_cast<uint64_t>(delta.y), 
+						static_cast<uint64_t>(delta.z),
+						pos, normal
+					);
+
+					const auto size = pts.size();
+
+					if (size < 3) {
+						// no contact, point, or line which have zero area
+						continue;
+					}
+					else if (size > 6) {
+						throw new std::runtime_error("Invalid polygon.");
+					}
+					else if (size == 3) {
+						subtotal += area_of_triangle(pts, anisotropy);
+					}
+					else if (size == 4) { 
+						subtotal += area_of_quad(pts, anisotropy);
+					}
+					else { // 5, 6
+						subtotal += area_of_poly(pts, normal, anisotropy);
+					}
+
+					ccl[loc] = 1;
+				}
+			}
+		}
+	}
+
+	return subtotal;
+}
+
+float cross_sectional_area_helper(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& pos, // plane position
+	const Vec3& normal, // plane normal vector
+	const Vec3& anisotropy // anisotropy
+) {
+	std::vector<bool> ccl(sx * sy * sz);
+
+	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
+
+	// maximum possible size of plane multiplied by sampling frequency
+	uint64_t psx = diagonal;
+	uint64_t psy = psx;
+
+	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
+
+	Vec3 ihat = Vec3(1,0,0);
+	Vec3 jhat = Vec3(0,1,0);
+
+	Vec3 basis1 = normal.cross(ihat);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(jhat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	uint64_t plane_pos_x = diagonal / 2;
+	uint64_t plane_pos_y = diagonal / 2;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<uint64_t> stack;
+	stack.push(ploc);
+
+	float total = 0.0;
+
+	std::vector<Vec3> pts;
+	pts.reserve(12);
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+			continue;
+		}
+		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+
+		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		);
+
+		if (!binimg[loc]) {
+			continue;
+		}
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		uint64_t upleft = ploc - psx - 1; 
+		uint64_t downleft = ploc + psx - 1;
+		uint64_t upright = ploc - psx + 1;
+		uint64_t downright = ploc + psx + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+
+		if (x > 0 && y > 0 && !visited[upleft]) {
+			stack.push(upleft);
+		}
+		if (x < psx - 1 && y > 0 && !visited[upright]) {
+			stack.push(upright);
+		}
+		if (x > 0 && y < psy - 1 && !visited[downleft]) {
+			stack.push(downleft);
+		}
+		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
+			stack.push(downright);
+		}
+
+		total += calc_area_at_point(
+			binimg, ccl,
+			sx, sy, sz,
+			cur, pos, normal, anisotropy,
+			pts
+		);
+	}
+
+	return total;
+}
+
+};
+
+namespace xs3d {
+
 float cross_sectional_area(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
-	const float wx = 1.0, const float wy = 1.0, const float wz = 1.0
+	const float wx, const float wy, const float wz
 ) {
 
 	if (px < 0 || px >= sx) {
@@ -394,64 +511,16 @@ float cross_sectional_area(
 		return 0.0;
 	}
 
+	const Vec3 pos(px, py, pz);
 	const Vec3 anisotropy(wx, wy, wz);
-	Vec3 nhat(nx, ny, nz);
-	nhat /= nhat.norm();
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
 
-	uint32_t* ccl = compute_ccl(
+	return cross_sectional_area_helper(
 		binimg, 
 		sx, sy, sz, 
-		px, py, pz, 
-		nhat.x, nhat.y, nhat.z
+		pos, normal, anisotropy
 	);
-
-	const uint32_t label = ccl[loc];
-
-	std::vector<Vec3> pts;
-	pts.reserve(12);
-
-	float total = 0.0;
-
-	for (uint64_t z = 0; z < sz; z++) {
-		for (uint64_t y = 0; y < sy; y++) {
-			for (uint64_t x = 0; x < sx; x++) {
-				loc = x + sx * (y + sy * z);
-				if (ccl[loc] != label) {
-					continue;
-				}
-
-				check_intersections(
-					pts, 
-					x, y, z,
-					px, py, pz,
-					nhat.x, nhat.y, nhat.z
-				);
-
-				const auto size = pts.size();
-
-				if (size < 3) {
-					// no contact, point, or line which have zero area
-					continue;
-				}
-				else if (size > 6) {
-					return -1.0;
-				}
-				else if (size == 3) {
-					total += area_of_triangle(pts, anisotropy);
-				}
-				else if (size == 4) { 
-					total += area_of_quad(pts, anisotropy);
-				}
-				else { // 5, 6
-					total += area_of_poly(pts, nhat, anisotropy);
-				}
-			}
-		}
-	}
-
-	delete[] ccl;
-
-	return total;
 }
 
 };
