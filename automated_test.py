@@ -153,6 +153,20 @@ def test_sphere():
 		prev_area = area
 
 
+def test_off_angle():
+	binimg = np.ones([2,2,2], dtype=bool)
+	pos = [1,1,1]
+	normal = [ 0.92847669, -0.37139068, 0]
+
+	approximate_area = 4 * np.sqrt(1 + (normal[1]/normal[0]) ** 2)
+
+	area = xs3d.cross_sectional_area(binimg, pos, normal)
+	assert abs(area - approximate_area) < 0.001
+
+
+
+
+
 
 
 
