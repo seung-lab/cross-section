@@ -83,6 +83,9 @@ public:
 	bool is_null() const {
 		return x == 0 && y == 0 && z == 0;
 	}
+	bool is_axis_aligned() const {
+		return ((x != 0) + (y != 0) + (z != 0)) == 1;
+	}
 	void print(const std::string &name) {
 		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
 	}
@@ -299,9 +302,31 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	for (float z = -1; z <= 1; z++) {
-		for (float y = -1; y <= 1; y++) {
-			for (float x = -1; x <= 1; x++) {
+	float xs = -1;
+	float ys = -1;
+	float zs = -1;
+
+	float xe = 1;
+	float ye = 1;
+	float ze = 1;
+	
+	// only need to check around the current voxel if
+	// there's a possibility that there is a gap due
+	// to basis vector motion. If the normal is axis
+	// aligned to x, y, or z, there will be no gap.
+	if (normal.is_axis_aligned()) {
+		xs = 0;
+		ys = 0;
+		zs = 0;
+
+		xe = 0;
+		ye = 0;
+		ze = 0;		
+	}
+
+	for (float z = zs; z <= ze; z++) {
+		for (float y = ys; y <= ye; y++) {
+			for (float x = xs; x <= xe; x++) {
 				
 				Vec3 delta(x,y,z);
 				delta += cur;
