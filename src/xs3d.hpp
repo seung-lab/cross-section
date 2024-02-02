@@ -322,6 +322,8 @@ float calc_area_at_point(
 				}
 
 				if (ccl[loc] == 0) {
+					ccl[loc] = 1;
+					
 					check_intersections(
 						pts, 
 						static_cast<uint64_t>(delta.x), 
@@ -348,8 +350,6 @@ float calc_area_at_point(
 					else { // 5, 6
 						subtotal += area_of_poly(pts, normal, anisotropy);
 					}
-
-					ccl[loc] = 1;
 				}
 			}
 		}
