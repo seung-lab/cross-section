@@ -235,13 +235,13 @@ void check_intersections(
 	const Vec3 jhat = Vec3(0, 1, 0);
 	const Vec3 khat = Vec3(0, 0, 1);
 
-	Vec3 pipes[12] = {
+	const Vec3 pipes[12] = {
 		ihat, ihat, ihat, ihat,
 		jhat, jhat, jhat, jhat,
 		khat, khat, khat, khat
 	};
 
-	Vec3 pipe_points[12] = {
+	const Vec3 pipe_points[12] = {
 		c[0], c[1], c[2], c[3],
 		c[0], c[1], c[4], c[5],
 		c[0], c[2], c[4], c[6]
