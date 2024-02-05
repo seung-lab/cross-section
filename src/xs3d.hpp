@@ -67,6 +67,9 @@ public:
 	float dot(const Vec3& o) const {
 		return x * o.x + y * o.y + z * o.z;
 	}
+	float absmax() const {
+		return std::max(abs(x),std::max(abs(y),abs(z)));
+	}
 	float max() const {
 		return std::max(x,std::max(y,z));
 	}
@@ -424,10 +427,10 @@ float cross_sectional_area_helper(
 	if (basis1.is_null()) {
 		basis1 = normal.cross(jhat);
 	}
-	basis1 /= basis1.norm();
+	basis1 /= basis1.absmax();
 
 	Vec3 basis2 = normal.cross(basis1);
-	basis2 /= basis2.norm();
+	basis2 /= basis2.absmax();
 
 	uint64_t plane_pos_x = diagonal / 2;
 	uint64_t plane_pos_y = diagonal / 2;
