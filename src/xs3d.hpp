@@ -103,6 +103,10 @@ public:
 	}
 };
 
+const Vec3 ihat = Vec3(1,0,0);
+const Vec3 jhat = Vec3(0,1,0);
+const Vec3 khat = Vec3(0,0,1);
+
 float area_of_triangle(
 	const std::vector<Vec3>& pts, 
 	const Vec3& anisotropy
@@ -233,10 +237,6 @@ void check_intersections(
 		Vec3(1, 1, 0), // 6
 		Vec3(1, 1, 1) // 7
 	};
-
-	const Vec3 ihat = Vec3(1, 0, 0);
-	const Vec3 jhat = Vec3(0, 1, 0);
-	const Vec3 khat = Vec3(0, 0, 1);
 
 	const Vec3 pipes[12] = {
 		ihat, ihat, ihat, ihat,
@@ -419,9 +419,6 @@ float cross_sectional_area_helper(
 	uint64_t psy = psx;
 
 	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
-
-	Vec3 ihat = Vec3(1,0,0);
-	Vec3 jhat = Vec3(0,1,0);
 
 	Vec3 basis1 = normal.cross(ihat);
 	if (basis1.is_null()) {
