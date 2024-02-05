@@ -67,6 +67,12 @@ public:
 	float dot(const Vec3& o) const {
 		return x * o.x + y * o.y + z * o.z;
 	}
+	float max() const {
+		return std::max(x,std::max(y,z));
+	}
+	float min() const {
+		return std::min(x,std::min(y,z));
+	}
 	float norm() const {
 		return sqrt(x*x + y*y + z*z);
 	}
@@ -83,10 +89,13 @@ public:
 	bool is_null() const {
 		return x == 0 && y == 0 && z == 0;
 	}
+	int num_zero_dims() const {
+		return (x == 0) + (y == 0) + (z == 0);
+	}
 	bool is_axis_aligned() const {
 		return ((x != 0) + (y != 0) + (z != 0)) == 1;
 	}
-	void print(const std::string &name) {
+	void print(const std::string &name) const {
 		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
 	}
 };
@@ -250,6 +259,10 @@ void check_intersections(
 		return false;
 	};
 
+	const uint64_t max_pts = (normal.num_zero_dims() >= 1)
+		? 4
+		: 6;
+
 	for (int i = 0; i < 12; i++) {
 		Vec3 pipe = pipes[i];
 		Vec3 corner = pipe_points[i];
@@ -288,6 +301,10 @@ void check_intersections(
 
 		if (!inlist(nearest_pt)) {
 			pts.push_back(nearest_pt);
+
+			if (pts.size() >= max_pts) {
+				break;
+			}
 		}
 	}
 }
@@ -394,7 +411,7 @@ float cross_sectional_area_helper(
 
 	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
 
-	// maximum possible size of plane multiplied by sampling frequency
+	// maximum possible size of plane
 	uint64_t psx = diagonal;
 	uint64_t psy = psx;
 
