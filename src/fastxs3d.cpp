@@ -10,7 +10,7 @@
 
 namespace py = pybind11;
 
-float xsa(
+auto xsa(
 	const py::array_t<uint8_t> &binimg,
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
@@ -24,13 +24,16 @@ float xsa(
 		? 1 
 		: binimg.shape()[2];
 
-	return xs3d::cross_sectional_area(
+	bool contact = false;
+	float area = xs3d::cross_sectional_area(
 		binimg.data(),
 		sx, sy, sz,
 		point.at(0), point.at(1), point.at(2),
 		normal.at(0), normal.at(1), normal.at(2),
-		anisotropy.at(0), anisotropy.at(1), anisotropy.at(2)
+		anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+		contact
 	);
+	return std::tuple(area, contact);
 }
 
 PYBIND11_MODULE(fastxs3d, m) {
