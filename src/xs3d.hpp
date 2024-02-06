@@ -360,13 +360,15 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	Vec3 block = (cur/2.0).floor() * 2.0;
+	Vec3 block = (cur/2.0).floor();
 
-	uint64_t ccl_loc = (block/2).loc(sx,sy,sz);
+	uint64_t ccl_loc = block.loc(sx/2,sy/2,sz/2);
 
 	if (ccl[ccl_loc]) {
 		return 0.0;
 	}
+
+	block *= 2.0;
 
 	auto areafn = [&](const Vec3& delta, const float block_size) {
 		check_intersections(
@@ -417,7 +419,7 @@ float calc_area_at_point(
 	}
 
 	subtotal += areafn(block, 2.0);
-	ccl[ccl_loc] = 1;
+	ccl[ccl_loc] = true;
 
 	return subtotal;
 }
@@ -429,7 +431,7 @@ float cross_sectional_area_helper(
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy // anisotropy
 ) {
-	std::vector<bool> ccl((sx * sy * sz + 7) / 8);
+	std::vector<bool> ccl(sx * sy * sz / 8);
 
 	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
 
