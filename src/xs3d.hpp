@@ -48,9 +48,6 @@ public:
 		y *= scalar;
 		z *= scalar;
 	}
-	Vec3 operator*(const Vec3& other) const {
-		return Vec3(x * other.x, y * other.y, z * other.z);
-	}
 	void operator*=(const Vec3& other) {
 		x *= other.x;
 		y *= other.y;
@@ -249,15 +246,32 @@ void check_intersections(
 ) {
 	pts.clear();
 
+	Vec3 upper(0.5, 0.5, 0.5);
+	Vec3 multiplier(1,1,1);
+	if (block_size == 2.0) {
+		if (x < sx - 1) {
+			upper.x = 1.5;
+			multiplier.x = 2;
+		}
+		if (y < sy - 1) {
+			upper.y = 1.5;
+			multiplier.y = 2;
+		}
+		if (z < sz - 1) {
+			upper.z = 1.5;
+			multiplier.z = 2;
+		}
+	}
+
 	const Vec3 c[8] = {
-		Vec3(0, 0, 0) * block_size, // 0
-		Vec3(0, 0, 1) * block_size, // 1 
-		Vec3(0, 1, 0) * block_size, // 2 
-		Vec3(0, 1, 1) * block_size, // 3
-		Vec3(1, 0, 0) * block_size, // 4
-		Vec3(1, 0, 1) * block_size, // 5
-		Vec3(1, 1, 0) * block_size, // 6
-		Vec3(1, 1, 1) * block_size // 7
+		Vec3(0, 0, 0) * multiplier, // 0
+		Vec3(0, 0, 1) * multiplier, // 1 
+		Vec3(0, 1, 0) * multiplier, // 2 
+		Vec3(0, 1, 1) * multiplier, // 3
+		Vec3(1, 0, 0) * multiplier, // 4
+		Vec3(1, 0, 1) * multiplier, // 5
+		Vec3(1, 1, 0) * multiplier, // 6
+		Vec3(1, 1, 1) * multiplier // 7
 	};
 
 	const Vec3 pipes[12] = {
@@ -287,21 +301,6 @@ void check_intersections(
 	const uint64_t max_pts = (normal.num_zero_dims() >= 1)
 		? 4
 		: 6;
-
-	Vec3 upper(0.5, 0.5, 0.5);
-	if (block_size == 2.0) {
-		if (x < sx - 1) {
-			upper.x = 1.5;
-		}
-		if (y < sy - 1) {
-			upper.y = 1.5;
-		}
-		if (z < sz - 1) {
-			upper.z = 1.5;
-		}
-	}
-
-	upper.print("upper");
 
 	for (int i = 0; i < 12; i++) {
 		Vec3 pipe = pipes[i];
@@ -367,7 +366,7 @@ float calc_area_at_point(
 		return 0;
 	}
 
-	auto areafn = [&](const Vec3& delta, const float block_size){
+	auto areafn = [&](const Vec3& delta, const float block_size) {
 		check_intersections(
 			pts, 
 			static_cast<uint64_t>(delta.x),
