@@ -5,30 +5,59 @@ import xs3d
 def test_single_voxel():
 	voxel = np.ones([1,1,1], dtype=bool, order="F")
 
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [0,0,1])
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [0,0,1], 
+		return_contact=True
+	)
 	assert area == 1
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [0,1,0])
+	assert contact == True
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [0,1,0], 
+		return_contact=True
+	)
 	assert area == 1
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [1,0,0])
+	assert contact == True
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [1,0,0], 
+		return_contact=True
+	)
 	assert area == 1
+	assert contact == True
 
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [1,1,0])
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [1,1,0], 
+		return_contact=True
+	)
 	assert np.isclose(area, np.sqrt(2))
+	assert contact == True
 
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [0,1,1])
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [0,1,1], 
+		return_contact=True
+	)
 	assert np.isclose(area, np.sqrt(2))
+	assert contact == True
 
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [1,0,1])
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [1,0,1], 
+		return_contact=True
+	)
 	assert np.isclose(area, np.sqrt(2))
+	assert contact == True
 
-	area = xs3d.cross_sectional_area(voxel, [0,0,0], [1,1,1])
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [1,1,1], 
+		return_contact=True
+	)
 	tri = np.sqrt(3) / 2 * ((0.5) ** 2)
 	hexagon = 6 * tri
 	assert np.isclose(area, hexagon)
+	assert contact == True
 
 	# outside the voxel
-	area = xs3d.cross_sectional_area(voxel, [1,0,0], [1,0,0])
+	area, contact = xs3d.cross_sectional_area(voxel, [1,0,0], [1,0,0], return_contact=True)
 	assert area == 0
+	assert contact == False
 	area = xs3d.cross_sectional_area(voxel, [-1,0,0], [1,0,0])
 	assert area == 0
 
@@ -45,8 +74,9 @@ def test_ccl():
 	img[:3,:3,:3] = True
 	img[6:,6:,:3] = True
 
-	area = xs3d.cross_sectional_area(img, [1,1,1], [0,0,1])
+	area, contact = xs3d.cross_sectional_area(img, [1,1,1], [0,0,1], return_contact=True)
 	assert area == 9
+	assert contact == True
 
 	area = xs3d.cross_sectional_area(img, [7,7,1], [0,0,1])
 	assert area == 16
@@ -59,6 +89,11 @@ def test_ccl():
 
 	area = xs3d.cross_sectional_area(img, [0,1,1], [0,0,1])
 	assert area == 15
+
+	img[2:4,2:4,6:8] = True
+	area, contact = xs3d.cross_sectional_area(img, [2,2,6], [0,0,1], return_contact=True)
+	assert area == 4
+	assert contact == False
 
 def test_8_connectivity():
 	img = np.zeros([4,4,3], dtype=bool, order="F")
@@ -124,12 +159,13 @@ def test_sphere():
 
 	for theta in range(0,50):
 		normal = angle(theta / 50 * 2 * np.pi)
-		area = xs3d.cross_sectional_area(img, pos, normal)
+		area, contact = xs3d.cross_sectional_area(img, pos, normal, return_contact=True)
 
 		assert area > np.pi * (r-1.5) * (r-1.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
 		assert ratio < smoothness
+		assert contact == False
 
 		prev_area = area
 
