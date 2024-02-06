@@ -102,10 +102,17 @@ def cross_sectional_area_2d(
   wx, wy = float(anisotropy[0]), float(anisotropy[1])
 
   y_intercept = pos[1] - slope * pos[0]
+  contact = False
+
   for y in range(sy):
     for x in range(sx):
       if ccl[x,y] != label:
         continue
+
+      if x in (0, sx-1):
+        contact = True
+      elif y in (0, sy-1):
+        contact = True
 
       h0 = float(y) - 0.5
       h1 = float(y) + 0.5
@@ -152,18 +159,6 @@ def cross_sectional_area_2d(
 
       total += np.sqrt(px*px + py*py)
 
-  return total
-
-
-
-
-
-
-
-
-
-
-
-
+  return total, contact
 
 

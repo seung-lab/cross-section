@@ -53,8 +53,7 @@ def cross_sectional_area(
   binimg = np.asfortranarray(binimg)
 
   if binimg.ndim == 2:
-    contact = False
-    area = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
+    area, contact = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
     area, contact = fastxs3d.xsa(binimg, pos, normal, anisotropy)
   else:
