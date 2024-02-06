@@ -6,6 +6,7 @@
 #include <memory>
 #include <stack>
 #include <vector>
+#include <string>
 
 namespace {
 
