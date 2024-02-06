@@ -398,7 +398,8 @@ float cross_sectional_area_helper(
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
-	const Vec3& anisotropy // anisotropy
+	const Vec3& anisotropy, // anisotropy
+	bool& contact
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
@@ -449,6 +450,13 @@ float cross_sectional_area_helper(
 		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 1 || cur.y < 1 || cur.z < 1) {
+			contact = true;
+		}
+		else if (cur.x >= sx - 1 || cur.y >= sy - 1 || cur.z >= sz - 1) {
+			contact = true;
+		}
 
 		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 			continue;
@@ -512,6 +520,8 @@ float cross_sectional_area_helper(
 	return total;
 }
 
+static bool _dummy_contact = false;
+
 };
 
 namespace xs3d {
@@ -522,7 +532,8 @@ float cross_sectional_area(
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
-	const float wx, const float wy, const float wz
+	const float wx, const float wy, const float wz,
+	bool &contact = _dummy_contact 
 ) {
 
 	if (px < 0 || px >= sx) {
@@ -551,7 +562,8 @@ float cross_sectional_area(
 	return cross_sectional_area_helper(
 		binimg, 
 		sx, sy, sz, 
-		pos, normal, anisotropy
+		pos, normal, anisotropy,
+		contact
 	);
 }
 
