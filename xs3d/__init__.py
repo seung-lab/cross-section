@@ -11,7 +11,29 @@ def cross_sectional_area(
   normal:Sequence[float],
   anisotropy:Optional[Sequence[float]] = None,
   return_contact:bool = False,
-):
+) -> float:
+  """
+  Find the cross sectional area for a given binary image, 
+  point, and normal vector.
+
+  binimg: a binary 2d or 3d numpy image (e.g. a bool datatype)
+  pos: the point in the image from which to extract the section
+    must be an integer (it's an index into the image).
+    e.g. [5,10,2]
+  normal: a vector normal to the section plane, does not
+    need to be a unit vector. e.g. [sqrt(2)/2. sqrt(2)/2, 0]
+  anisotropy: resolution of the x, y, and z axis
+    e.g. [4,4,40] for an electron microscope image with 
+    4nm XY resolution with a 40nm cutting plane in 
+    serial sectioning.
+  return_contact: if true, return a tuple of (area, contact)
+    where area is the usual output and contact is True if
+    the section plane has contacted the edge of the image
+    indicating the area may be an underestimate if you are
+    working with a cutout of a larger image.
+
+  Returns: physical area covered by the section plane
+  """
   if anisotropy is None:
     anisotropy = [ 1.0 ] * binimg.ndim
 
