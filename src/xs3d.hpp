@@ -37,6 +37,9 @@ public:
 	Vec3 operator-(const Vec3& other) const {
 		return Vec3(x - other.x, y - other.y, z - other.z);
 	}
+	Vec3 operator*(const Vec3& other) const {
+		return Vec3(x * other.x, y * other.y, z * other.z);
+	}
 	Vec3 operator*(const float scalar) const {
 		return Vec3(x * scalar, y * scalar, z * scalar);
 	}
@@ -241,6 +244,7 @@ float area_of_poly(
 void check_intersections(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& pos, const Vec3& normal, const float block_size
 ) {
 	pts.clear();
@@ -284,6 +288,21 @@ void check_intersections(
 		? 4
 		: 6;
 
+	Vec3 upper(0.5, 0.5, 0.5);
+	if (block_size == 2.0) {
+		if (x < sx - 1) {
+			upper.x = 1.5;
+		}
+		if (y < sy - 1) {
+			upper.y = 1.5;
+		}
+		if (z < sz - 1) {
+			upper.z = 1.5;
+		}
+	}
+
+	upper.print("upper");
+
 	for (int i = 0; i < 12; i++) {
 		Vec3 pipe = pipes[i];
 		Vec3 corner = pipe_points[i];
@@ -310,13 +329,13 @@ void check_intersections(
 		float t = proj / proj2;
 		Vec3 nearest_pt = corner + pipe * t;
 
-		if (nearest_pt.x > (x+0.5) || nearest_pt.x < (x-0.5)) {
+		if (nearest_pt.x > (x+upper.x) || nearest_pt.x < (x-0.5)) {
 			continue;
 		}
-		else if (nearest_pt.y > (y+0.5) || nearest_pt.y < (y-0.5)) {
+		else if (nearest_pt.y > (y+upper.y) || nearest_pt.y < (y-0.5)) {
 			continue;
 		}
-		else if (nearest_pt.z > (z+0.5) || nearest_pt.z < (z-0.5)) {
+		else if (nearest_pt.z > (z+upper.z) || nearest_pt.z < (z-0.5)) {
 			continue;
 		}
 
@@ -351,9 +370,10 @@ float calc_area_at_point(
 	auto areafn = [&](const Vec3& delta, const float block_size){
 		check_intersections(
 			pts, 
-			static_cast<uint64_t>(delta.x), 
+			static_cast<uint64_t>(delta.x),
 			static_cast<uint64_t>(delta.y), 
 			static_cast<uint64_t>(delta.z),
+			sx, sy, sz,
 			pos, normal, block_size
 		);
 
@@ -361,7 +381,7 @@ float calc_area_at_point(
 
 		if (size < 3) {
 			// no contact, point, or line which have zero area
-			return 0.0f;
+			return static_cast<float>(0.0);
 		}
 		else if (size == 3) {
 			return area_of_triangle(pts, anisotropy);
