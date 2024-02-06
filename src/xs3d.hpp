@@ -319,13 +319,13 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	float xs = -1;
-	float ys = -1;
-	float zs = -1;
+	float xs = (cur.x - 1) < 0 ? -1 : 0;
+	float ys = (cur.y - 1) < 0 ? -1 : 0;
+	float zs = (cur.z - 1) < 0 ? -1 : 0;
 
-	float xe = 1;
-	float ye = 1;
-	float ze = 1;
+	float xe = (cur.x + 1) < sx ? 1 : 0;
+	float ye = (cur.y + 1) < sy ? 1 : 0;
+	float ze = (cur.z + 1) < sz ? 1 : 0;
 	
 	// only need to check around the current voxel if
 	// there's a possibility that there is a gap due
@@ -347,13 +347,6 @@ float calc_area_at_point(
 				
 				Vec3 delta(x,y,z);
 				delta += cur;
-
-				if (delta.x < 0 || delta.y < 0 || delta.z < 0) {
-					continue;
-				}
-				else if (delta.x >= sx || delta.y >= sy || delta.z >= sz) {
-					continue;
-				}
 
 				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
 					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
