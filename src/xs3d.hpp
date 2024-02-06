@@ -358,12 +358,12 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	Vec3 block = (cur % 2.0).floor();
+	Vec3 block = (cur/2.0).floor() * 2.0;
 
 	uint64_t ccl_loc = (block/2).loc(sx,sy,sz);
 
 	if (ccl[ccl_loc]) {
-		return 0;
+		return 0.0;
 	}
 
 	auto areafn = [&](const Vec3& delta, const float block_size) {
@@ -445,9 +445,6 @@ float cross_sectional_area_helper(
 
 	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
-
-	basis1 *= 2;
-	basis2 *= 2;
 
 	uint64_t plane_pos_x = diagonal / 2;
 	uint64_t plane_pos_y = diagonal / 2;
