@@ -27,10 +27,17 @@ def cross_sectional_area(
     4nm XY resolution with a 40nm cutting plane in 
     serial sectioning.
   return_contact: if true, return a tuple of (area, contact)
-    where area is the usual output and contact is True if
+    where area is the usual output and contact is non-zero if
     the section plane has contacted the edge of the image
     indicating the area may be an underestimate if you are
     working with a cutout of a larger image.
+
+    Contact is an 8-bit bitfield that represents which image faces
+    have been touched. The bits are organized as follows.
+
+    0: 0 X     2: 0 Y     4: 0 Z      6: Unused
+    1: Max X   3: Max Y   5: Max Z    7: Unused
+
 
   Returns: physical area covered by the section plane
   """
