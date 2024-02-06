@@ -10,6 +10,7 @@ def cross_sectional_area(
   pos:Sequence[int],
   normal:Sequence[float],
   anisotropy:Optional[Sequence[float]] = None,
+  return_contact:bool = False,
 ):
   if anisotropy is None:
     anisotropy = [ 1.0 ] * binimg.ndim
@@ -30,7 +31,15 @@ def cross_sectional_area(
   binimg = np.asfortranarray(binimg)
 
   if binimg.ndim == 2:
-    return cross_sectional_area_2d(binimg, pos, normal, anisotropy)
+    contact = False
+    area = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
-    return fastxs3d.xsa(binimg, pos, normal, anisotropy)
-  raise ValueError("dimensions not supported")
+    area, contact = fastxs3d.xsa(binimg, pos, normal, anisotropy)
+  else:
+    raise ValueError("dimensions not supported")
+
+  if return_contact:
+    return (area, contact)
+  else:
+    return area
+
