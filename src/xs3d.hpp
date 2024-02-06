@@ -12,6 +12,7 @@ namespace {
 class Vec3 {
 public:
 	float x, y, z;
+	Vec3() : x(0), y(0), z(0) {}
 	Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
 
 	Vec3 operator+(const Vec3& other) const {
@@ -52,6 +53,13 @@ public:
 		y *= other.y;
 		z *= other.z;
 	}
+	Vec3 operator%(const float divisor) const {
+		return Vec3(
+			std::fmod(x,divisor), 
+			std::fmod(y,divisor), 
+			std::fmod(z,divisor)
+		);
+	}
 	Vec3 operator/(const float divisor) const {
 		return Vec3(x/divisor, y/divisor, z/divisor);
 	}
@@ -63,7 +71,6 @@ public:
 	bool operator==(const Vec3& other) const {
 		return x == other.x && y == other.y && z == other.z;
 	}
-
 	float dot(const Vec3& o) const {
 		return x * o.x + y * o.y + z * o.z;
 	}
@@ -79,11 +86,25 @@ public:
 	bool close(const Vec3& o) {
 		return (*this - o).norm() < 1e-4;
 	}
+	Vec3 copy() const {
+		return Vec3(x,y,z);
+	}
 	Vec3 cross(const Vec3& o) const {
 		return Vec3(
 			y * o.z - z * o.y, 
 			z * o.x - x * o.z,
 			x * o.y - y * o.x
+		);
+	}
+	Vec3 floor() const {
+		return Vec3(std::floor(x), std::floor(y), std::floor(z));
+	}
+	Vec3 ceil() const {
+		return Vec3(std::ceil(x), std::ceil(y), std::ceil(z));
+	}
+	uint64_t loc(const uint64_t sx, const uint64_t sy, const uint64_t sz) const {
+		return static_cast<uint64_t>(x) + sx * (
+			static_cast<uint64_t>(y) + sy * static_cast<uint64_t>(z)
 		);
 	}
 	bool is_null() const {
@@ -220,19 +241,19 @@ float area_of_poly(
 void check_intersections(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
-	const Vec3& pos, const Vec3& normal
+	const Vec3& pos, const Vec3& normal, const float block_size
 ) {
 	pts.clear();
 
 	const Vec3 c[8] = {
-		Vec3(0, 0, 0), // 0
-		Vec3(0, 0, 1), // 1 
-		Vec3(0, 1, 0), // 2 
-		Vec3(0, 1, 1), // 3
-		Vec3(1, 0, 0), // 4
-		Vec3(1, 0, 1), // 5
-		Vec3(1, 1, 0), // 6
-		Vec3(1, 1, 1) // 7
+		Vec3(0, 0, 0) * block_size, // 0
+		Vec3(0, 0, 1) * block_size, // 1 
+		Vec3(0, 1, 0) * block_size, // 2 
+		Vec3(0, 1, 1) * block_size, // 3
+		Vec3(1, 0, 0) * block_size, // 4
+		Vec3(1, 0, 1) * block_size, // 5
+		Vec3(1, 1, 0) * block_size, // 6
+		Vec3(1, 1, 1) * block_size // 7
 	};
 
 	const Vec3 pipes[12] = {
@@ -319,83 +340,63 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	float xs = -1;
-	float ys = -1;
-	float zs = -1;
+	Vec3 block = (cur % 2.0).floor();
 
-	float xe = 1;
-	float ye = 1;
-	float ze = 1;
-	
-	// only need to check around the current voxel if
-	// there's a possibility that there is a gap due
-	// to basis vector motion. If the normal is axis
-	// aligned to x, y, or z, there will be no gap.
-	if (normal.is_axis_aligned()) {
-		xs = 0;
-		ys = 0;
-		zs = 0;
+	uint64_t ccl_loc = (block/2).loc(sx,sy,sz);
 
-		xe = 0;
-		ye = 0;
-		ze = 0;		
+	if (ccl[ccl_loc]) {
+		return 0;
 	}
 
-	for (float z = zs; z <= ze; z++) {
-		for (float y = ys; y <= ye; y++) {
-			for (float x = xs; x <= xe; x++) {
-				
-				Vec3 delta(x,y,z);
-				delta += cur;
+	auto areafn = [&](const Vec3& delta, const float block_size){
+		check_intersections(
+			pts, 
+			static_cast<uint64_t>(delta.x), 
+			static_cast<uint64_t>(delta.y), 
+			static_cast<uint64_t>(delta.z),
+			pos, normal, block_size
+		);
 
-				if (delta.x < 0 || delta.y < 0 || delta.z < 0) {
-					continue;
-				}
-				else if (delta.x >= sx || delta.y >= sy || delta.z >= sz) {
-					continue;
-				}
+		const auto size = pts.size();
 
-				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
-					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
-				);
+		if (size < 3) {
+			// no contact, point, or line which have zero area
+			return 0.0f;
+		}
+		else if (size == 3) {
+			return area_of_triangle(pts, anisotropy);
+		}
+		else if (size == 4) { 
+			return area_of_quad(pts, anisotropy);
+		}
+		else { // 5, 6
+			return area_of_poly(pts, normal, anisotropy);
+		}
+	};
 
+	float xe = (block.x + 1) < sx;
+	float ye = (block.y + 1) < sy;
+	float ze = (block.z + 1) < sz;
+
+	uint64_t corner = block.loc(sx,sy,sz);
+
+	for (float z = 0; z <= ze; z++) {
+		for (float y = 0; y <= ye; y++) {
+			for (float x = 0; x <= xe; x++) {
+				uint64_t loc = corner + x + sx * (y + sy * z);
 				if (!binimg[loc]) {
-					continue;
-				}
-
-				if (ccl[loc] == 0) {
-					ccl[loc] = 1;
-					
-					check_intersections(
-						pts, 
-						static_cast<uint64_t>(delta.x), 
-						static_cast<uint64_t>(delta.y), 
-						static_cast<uint64_t>(delta.z),
-						pos, normal
-					);
-
-					const auto size = pts.size();
-
-					if (size < 3) {
-						// no contact, point, or line which have zero area
-						continue;
-					}
-					else if (size > 6) {
-						throw new std::runtime_error("Invalid polygon.");
-					}
-					else if (size == 3) {
-						subtotal += area_of_triangle(pts, anisotropy);
-					}
-					else if (size == 4) { 
-						subtotal += area_of_quad(pts, anisotropy);
-					}
-					else { // 5, 6
-						subtotal += area_of_poly(pts, normal, anisotropy);
-					}
+					Vec3 delta = block.copy();
+					delta.x += x;
+					delta.y += y;
+					delta.z += z;
+					subtotal -= areafn(delta, 1.0);
 				}
 			}
 		}
 	}
+
+	subtotal += areafn(block, 2.0);
+	ccl[ccl_loc] = 1;
 
 	return subtotal;
 }
@@ -407,7 +408,7 @@ float cross_sectional_area_helper(
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy // anisotropy
 ) {
-	std::vector<bool> ccl(sx * sy * sz);
+	std::vector<bool> ccl((sx * sy * sz + 7) / 8);
 
 	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
 
@@ -425,6 +426,9 @@ float cross_sectional_area_helper(
 
 	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
+
+	basis1 *= 2;
+	basis2 *= 2;
 
 	uint64_t plane_pos_x = diagonal / 2;
 	uint64_t plane_pos_y = diagonal / 2;
