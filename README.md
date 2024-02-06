@@ -21,6 +21,16 @@ resolution = np.array([32,32,40])
 
 # cross sectional area returned as a float
 area = xs3d.cross_sectional_area(binary_image, vertex, normal, resolution)
+
+# optionally return a boolean that tells you if the section
+# plane touched the image border, indicating a possible
+# underestimate of the area if the image is a cutout of
+# a larger scene.
+area, contact_warning = xs3d.cross_sectional_area(
+	binary_image, vertex, normal, resolution, 
+	return_contact=True
+)
+
 ```
 
 When using skeletons (one dimensional stick figure representations) to create electrophysiological compartment simulations of neurons, some additional information is required for accuracy. The caliber of the neurite changes over the length of the cell.
