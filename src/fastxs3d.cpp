@@ -24,7 +24,7 @@ auto xsa(
 		? 1 
 		: binimg.shape()[2];
 
-	bool contact = false;
+	uint8_t contact = false;
 	float area = xs3d::cross_sectional_area(
 		binimg.data(),
 		sx, sy, sz,

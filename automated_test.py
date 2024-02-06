@@ -10,40 +10,40 @@ def test_single_voxel():
 		return_contact=True
 	)
 	assert area == 1
-	assert contact == True
+	assert contact > 0
 	area, contact = xs3d.cross_sectional_area(
 		voxel, [0,0,0], [0,1,0], 
 		return_contact=True
 	)
 	assert area == 1
-	assert contact == True
+	assert contact > 0
 	area, contact = xs3d.cross_sectional_area(
 		voxel, [0,0,0], [1,0,0], 
 		return_contact=True
 	)
 	assert area == 1
-	assert contact == True
+	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
 		voxel, [0,0,0], [1,1,0], 
 		return_contact=True
 	)
 	assert np.isclose(area, np.sqrt(2))
-	assert contact == True
+	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
 		voxel, [0,0,0], [0,1,1], 
 		return_contact=True
 	)
 	assert np.isclose(area, np.sqrt(2))
-	assert contact == True
+	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
 		voxel, [0,0,0], [1,0,1], 
 		return_contact=True
 	)
 	assert np.isclose(area, np.sqrt(2))
-	assert contact == True
+	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
 		voxel, [0,0,0], [1,1,1], 
@@ -52,7 +52,7 @@ def test_single_voxel():
 	tri = np.sqrt(3) / 2 * ((0.5) ** 2)
 	hexagon = 6 * tri
 	assert np.isclose(area, hexagon)
-	assert contact == True
+	assert contact > 0
 
 	# outside the voxel
 	area, contact = xs3d.cross_sectional_area(voxel, [1,0,0], [1,0,0], return_contact=True)
@@ -76,7 +76,7 @@ def test_ccl():
 
 	area, contact = xs3d.cross_sectional_area(img, [1,1,1], [0,0,1], return_contact=True)
 	assert area == 9
-	assert contact == True
+	assert contact > 0
 
 	area = xs3d.cross_sectional_area(img, [7,7,1], [0,0,1])
 	assert area == 16

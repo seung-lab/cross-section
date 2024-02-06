@@ -399,7 +399,7 @@ float cross_sectional_area_helper(
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy, // anisotropy
-	bool& contact
+	uint8_t& contact
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
@@ -451,12 +451,12 @@ float cross_sectional_area_helper(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		if (cur.x < 1 || cur.y < 1 || cur.z < 1) {
-			contact = true;
-		}
-		else if (cur.x >= sx - 1 || cur.y >= sy - 1 || cur.z >= sz - 1) {
-			contact = true;
-		}
+		contact |= (cur.x < 1); // -x
+		contact |= (cur.x >= sx - 1) << 1; // +x
+		contact |= (cur.y < 1) << 2; // -y
+		contact |= (cur.y >= sy - 1) << 3; // +y
+		contact |= (cur.z < 1) << 4; // -z
+		contact |= (cur.z >= sz - 1) << 5; // +z
 
 		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 			continue;
@@ -520,7 +520,7 @@ float cross_sectional_area_helper(
 	return total;
 }
 
-static bool _dummy_contact = false;
+static uint8_t _dummy_contact = false;
 
 };
 
@@ -533,7 +533,7 @@ float cross_sectional_area(
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
 	const float wx, const float wy, const float wz,
-	bool &contact = _dummy_contact 
+	uint8_t &contact = _dummy_contact 
 ) {
 
 	if (px < 0 || px >= sx) {
