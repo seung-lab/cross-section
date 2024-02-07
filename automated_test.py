@@ -208,11 +208,34 @@ def test_5x5():
 	assert area == 25
 
 
+def test_symmetric_normals():
+	labels = np.ones((5,5,5), dtype=bool, order="F")
 
+	approximate_area = 5 * 5
 
+	areafn = lambda n: xs3d.cross_sectional_area(labels, [2,2,2], n)
 
+	assert areafn([1,0,0]) == approximate_area
+	assert areafn([-1,0,0]) == approximate_area
+	assert areafn([0,1,0]) == approximate_area
+	assert areafn([0,-1,0]) == approximate_area
+	assert areafn([0,0,1]) == approximate_area
+	assert areafn([0,0,-1]) == approximate_area
 
+	approximate_area = 5 * 5 * np.sqrt(2)
 
+	assert np.isclose(areafn([1,1,0]), approximate_area)
+	assert np.isclose(areafn([1,0,1]), approximate_area)
+	assert np.isclose(areafn([0,1,1]), approximate_area)
+	assert np.isclose(areafn([-1,-1,0]), approximate_area)
+	assert np.isclose(areafn([-1,0,-1]), approximate_area)
+	assert np.isclose(areafn([0,-1,-1]), approximate_area)
+	
+	assert np.isclose(areafn([-1,1,0]), approximate_area)
+	assert np.isclose(areafn([1,-1,0]), approximate_area)
+
+	
+	
 
 
 
