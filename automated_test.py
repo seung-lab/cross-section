@@ -233,6 +233,9 @@ def test_symmetric_normals():
 	
 	assert np.isclose(areafn([-1,1,0]), approximate_area)
 	assert np.isclose(areafn([1,-1,0]), approximate_area)
+	assert np.isclose(areafn([0, 1,-1]), approximate_area)
+	assert np.isclose(areafn([0,-1, 1]), approximate_area)
+
 
 	
 	
