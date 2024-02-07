@@ -409,7 +409,7 @@ float cross_sectional_area_helper(
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
-	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
+	uint64_t diagonal = 2 * std::max(std::max(sx,sy), sz);
 
 	// maximum possible size of plane
 	uint64_t psx = diagonal;
