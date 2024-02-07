@@ -1,3 +1,5 @@
+[![PyPI version](https://badge.fury.io/py/xs3d.svg)](https://badge.fury.io/py/xs3d)
+
 # xs3d: Compute cross sectional area for 3D image objects
 
 ```python
