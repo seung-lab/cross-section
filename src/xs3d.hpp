@@ -237,10 +237,14 @@ void check_intersections(
 		Vec3(1, 1, 1) // 7
 	};
 
-	const Vec3 pipes[12] = {
-		ihat, ihat, ihat, ihat,
-		jhat, jhat, jhat, jhat,
-		khat, khat, khat, khat
+	const Vec3 pipes[3] = {
+		ihat, jhat, khat
+	};
+
+	const float projections[3] = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
 	};
 
 	const Vec3 pipe_points[12] = {
@@ -266,7 +270,7 @@ void check_intersections(
 		: 6;
 
 	for (int i = 0; i < 12; i++) {
-		Vec3 pipe = pipes[i];
+		Vec3 pipe = pipes[i >> 2];
 		Vec3 corner = pipe_points[i];
 		corner += xyz;
 		
@@ -280,7 +284,7 @@ void check_intersections(
 			continue;
 		}
 
-		float proj2 = pipe.dot(normal);
+		float proj2 = projections[i >> 2];
 
 		// if traveling parallel to plane but
 		// not on the plane
