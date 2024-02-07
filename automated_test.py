@@ -161,7 +161,7 @@ def test_sphere():
 		normal = angle(theta / 50 * 2 * np.pi)
 		area, contact = xs3d.cross_sectional_area(img, pos, normal, return_contact=True)
 
-		assert area > np.pi * (r-1.5) * (r-1.5)
+		assert area > np.pi * (r-0.5) * (r-0.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
 		assert ratio < smoothness
@@ -181,7 +181,7 @@ def test_sphere():
 		normal = angle2(theta / 50 * 2 * np.pi)
 		area = xs3d.cross_sectional_area(img, pos, normal)
 
-		assert area > np.pi * (r-1.5) * (r-1.5)
+		assert area > np.pi * (r-0.5) * (r-0.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
 		assert ratio < smoothness
