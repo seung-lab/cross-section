@@ -462,7 +462,7 @@ float cross_sectional_area_helper(
 	float total = 0.0;
 
 	std::vector<Vec3> pts;
-	pts.reserve(12);
+	pts.reserve(6);
 
 	while (!stack.empty()) {
 		ploc = stack.top();
