@@ -431,7 +431,8 @@ float cross_sectional_area_helper(
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy // anisotropy
 ) {
-	std::vector<bool> ccl(sx * sy * sz / 8);
+
+	std::vector<bool> ccl((sx * sy * sz + 7) / 8);
 
 	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
 
