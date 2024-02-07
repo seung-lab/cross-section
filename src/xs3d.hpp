@@ -409,10 +409,10 @@ float cross_sectional_area_helper(
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
-	uint64_t diagonal = 2 * std::max(std::max(sx,sy), sz);
+	uint64_t plane_size = 2 * std::max(std::max(sx,sy), sz);
 
 	// maximum possible size of plane
-	uint64_t psx = diagonal;
+	uint64_t psx = plane_size;
 	uint64_t psy = psx;
 
 	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
@@ -426,8 +426,8 @@ float cross_sectional_area_helper(
 	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
 
-	uint64_t plane_pos_x = diagonal / 2;
-	uint64_t plane_pos_y = diagonal / 2;
+	uint64_t plane_pos_x = plane_size / 2;
+	uint64_t plane_pos_y = plane_size / 2;
 
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
 
