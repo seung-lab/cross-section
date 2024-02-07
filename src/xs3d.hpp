@@ -327,9 +327,9 @@ float calc_area_at_point(
 ) {
 	float subtotal = 0.0;
 
-	float xs = (cur.x - 1) > 0 ? -1 : 0;
-	float ys = (cur.y - 1) > 0 ? -1 : 0;
-	float zs = (cur.z - 1) > 0 ? -1 : 0;
+	float xs = (cur.x - 1) >= 0 ? -1 : 0;
+	float ys = (cur.y - 1) >= 0 ? -1 : 0;
+	float zs = (cur.z - 1) >= 0 ? -1 : 0;
 
 	float xe = (cur.x + 1) < sx ? 1 : 0;
 	float ye = (cur.y + 1) < sy ? 1 : 0;
