@@ -24,10 +24,14 @@ resolution = np.array([32,32,40])
 # cross sectional area returned as a float
 area = xs3d.cross_sectional_area(binary_image, vertex, normal, resolution)
 
-# optionally return a boolean that tells you if the section
+# optionally return a bitfield that tells you if the section
 # plane touched the image border, indicating a possible
 # underestimate of the area if the image is a cutout of
 # a larger scene.
+# if the bitfield is > 0, then some edge contact is made
+# the bitfield order is -x+x-y+y-z+z00
+# where - means left edge (0), and + means right edge (size-1)
+# and 0 means unused
 area, contact_warning = xs3d.cross_sectional_area(
 	binary_image, vertex, normal, resolution, 
 	return_contact=True
