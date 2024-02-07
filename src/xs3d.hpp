@@ -1,10 +1,12 @@
 #ifndef __XS3D_HPP__
 #define __XS3D_HPP__
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <memory>
 #include <stack>
+#include <string>
 #include <vector>
 
 namespace {
