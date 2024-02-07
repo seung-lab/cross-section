@@ -457,13 +457,6 @@ float cross_sectional_area_helper(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		contact |= (cur.x < 1); // -x
-		contact |= (cur.x >= sx - 1) << 1; // +x
-		contact |= (cur.y < 1) << 2; // -y
-		contact |= (cur.y >= sy - 1) << 3; // +y
-		contact |= (cur.z < 1) << 4; // -z
-		contact |= (cur.z >= sz - 1) << 5; // +z
-
 		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 			continue;
 		}
@@ -478,6 +471,13 @@ float cross_sectional_area_helper(
 		if (!binimg[loc]) {
 			continue;
 		}
+
+		contact |= (cur.x < 1); // -x
+		contact |= (cur.x >= sx - 1) << 1; // +x
+		contact |= (cur.y < 1) << 2; // -y
+		contact |= (cur.y >= sy - 1) << 3; // +y
+		contact |= (cur.z < 1) << 4; // -z
+		contact |= (cur.z >= sz - 1) << 5; // +z
 
 		uint64_t up = ploc - psx; 
 		uint64_t down = ploc + psx;
