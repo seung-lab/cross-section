@@ -236,7 +236,11 @@ def test_symmetric_normals():
 	assert np.isclose(areafn([0, 1,-1]), approximate_area)
 	assert np.isclose(areafn([0,-1, 1]), approximate_area)
 
+def test_empty():
+	labels = np.zeros([0,0,0], dtype=bool)
 
+	area = xs3d.cross_sectional_area(labels, [0,0,0], [1,1,1])
+	assert area == 0
 	
 	
 
