@@ -361,8 +361,8 @@ float calc_area_at_point(
 	float subtotal = 0.0;
 
 	Vec3 block = (cur/2.0).floor();
-
-	uint64_t ccl_loc = block.loc(sx/2,sy/2,sz/2);
+	
+	uint64_t ccl_loc = block.loc((sx+1)/2,(sy+1)/2,(sz+1)/2);
 
 	if (ccl[ccl_loc]) {
 		return 0.0;
@@ -432,12 +432,14 @@ float cross_sectional_area_helper(
 	const Vec3& anisotropy // anisotropy
 ) {
 
-	std::vector<bool> ccl((sx * sy * sz + 7) / 8);
+	std::vector<bool> ccl(
+		((sx+1)/2) * ((sy+1)/2) * ((sz+1)/2)
+	);
 
-	uint64_t diagonal = static_cast<uint64_t>(ceil(sqrt(sx * sx + sy * sy + sz * sz)));
+	uint64_t plane_size = 2 * std::max(std::max(sx, sy), sz);
 
 	// maximum possible size of plane
-	uint64_t psx = diagonal;
+	uint64_t psx = plane_size;
 	uint64_t psy = psx;
 
 	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
@@ -451,8 +453,8 @@ float cross_sectional_area_helper(
 	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
 
-	uint64_t plane_pos_x = diagonal / 2;
-	uint64_t plane_pos_y = diagonal / 2;
+	uint64_t plane_pos_x = plane_size / 2;
+	uint64_t plane_pos_y = plane_size / 2;
 
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
 
