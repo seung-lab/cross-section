@@ -557,6 +557,11 @@ float cross_sectional_area(
 	const float wx, const float wy, const float wz
 ) {
 
+	const uint64_t voxels = sx * sy * sz;
+	if (voxels == 0) {
+		return 0.0;
+	}
+
 	if (px < 0 || px >= sx) {
 		return 0.0;
 	}
