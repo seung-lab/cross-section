@@ -112,7 +112,7 @@ float area_of_triangle(
 ) {
 	Vec3 v1 = pts[1] - pts[0];
 	v1 *= anisotropy;
-	Vec3 v2 = pts[1] - pts[0];
+	Vec3 v2 = pts[2] - pts[0];
 	v2 *= anisotropy;
 	Vec3 v3 = v1.cross(v2);
 	return v3.norm() / 2.0;
