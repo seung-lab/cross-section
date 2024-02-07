@@ -200,8 +200,12 @@ def test_off_angle():
 	assert abs(area - approximate_area) < 0.001
 
 
+def test_5x5():
+	binimg = np.ones([5,5,1], dtype=bool)
 
+	area = xs3d.cross_sectional_area(binimg, [0,0,0], [0,0,1])
 
+	assert area == 25
 
 
 
