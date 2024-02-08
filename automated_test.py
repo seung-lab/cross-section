@@ -246,7 +246,7 @@ def test_empty():
 
 
 @pytest.mark.parametrize("off", [50, 25])
-@pytest.mark.parametrize("normal", [[1,0,0], [1,1,1], [-1,-1,1], [.3,-.2,.7]])
+@pytest.mark.parametrize("normal", [[1,0,0], [0,1,0], [0,0,1], [1,1,1], [-1,-1,1], [.3,-.2,.7]])
 def test_moving_window(off, normal):
 	labels = np.zeros([100,100,100], dtype=bool, order="F")
 	
