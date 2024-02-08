@@ -133,7 +133,7 @@ float area_of_triangle(
 ) {
 	Vec3 v1 = pts[1] - pts[0];
 	v1 *= anisotropy;
-	Vec3 v2 = pts[1] - pts[0];
+	Vec3 v2 = pts[2] - pts[0];
 	v2 *= anisotropy;
 	Vec3 v3 = v1.cross(v2);
 	return v3.norm() / 2.0;
@@ -249,6 +249,8 @@ void check_intersections(
 	pts.clear();
 
 	Vec3 upper(0.5, 0.5, 0.5);
+	Vec3 lower(0.5, 0.5, 0.5);
+
 	Vec3 multiplier(1,1,1);
 	if (block_size == 2.0) {
 		if (x < sx - 1) {
@@ -264,6 +266,10 @@ void check_intersections(
 			multiplier.z = 2;
 		}
 	}
+
+	const float epsilon = 2e-6;
+	upper += epsilon;
+	lower += epsilon;
 
 	const Vec3 c[8] = {
 		Vec3(0, 0, 0) * multiplier, // 0
@@ -330,13 +336,13 @@ void check_intersections(
 		float t = proj / proj2;
 		Vec3 nearest_pt = corner + pipe * t;
 
-		if (nearest_pt.x > (x+upper.x) || nearest_pt.x < (x-0.5)) {
+		if (nearest_pt.x > (x+upper.x) || nearest_pt.x < (x-lower.x)) {
 			continue;
 		}
-		else if (nearest_pt.y > (y+upper.y) || nearest_pt.y < (y-0.5)) {
+		else if (nearest_pt.y > (y+upper.y) || nearest_pt.y < (y-lower.y)) {
 			continue;
 		}
-		else if (nearest_pt.z > (z+upper.z) || nearest_pt.z < (z-0.5)) {
+		else if (nearest_pt.z > (z+upper.z) || nearest_pt.z < (z-lower.y)) {
 			continue;
 		}
 
