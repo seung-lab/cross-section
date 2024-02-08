@@ -1,3 +1,5 @@
+import pytest
+
 import numpy as np
 import xs3d
 
@@ -241,6 +243,25 @@ def test_empty():
 
 	area = xs3d.cross_sectional_area(labels, [0,0,0], [1,1,1])
 	assert area == 0
+
+
+@pytest.mark.parametrize("off", [50, 25])
+@pytest.mark.parametrize("normal", [[1,0,0], [1,1,1], [-1,-1,1], [.3,-.2,.7]])
+def test_moving_window(off, normal):
+	labels = np.zeros([100,100,100], dtype=bool, order="F")
+	
+	labels[:off, :off, :off] = True
+	initial_area = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal)
+
+	for i in range(30):
+		labels[:] = False
+		labels[i:i+off, i:i+off, i:i+off] = True
+
+		area = xs3d.cross_sectional_area(labels, [i+off//2, i+off//2, i+off//2], normal)
+		assert np.isclose(area, initial_area)
+
+
+
 	
 	
 
