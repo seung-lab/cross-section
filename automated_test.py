@@ -29,6 +29,7 @@ def test_single_voxel():
 	# outside the voxel
 	area = xs3d.cross_sectional_area(voxel, [1,0,0], [1,0,0])
 	assert area == 0
+
 	area = xs3d.cross_sectional_area(voxel, [-1,0,0], [1,0,0])
 	assert area == 0
 
@@ -59,6 +60,11 @@ def test_ccl():
 
 	area = xs3d.cross_sectional_area(img, [0,1,1], [0,0,1])
 	assert area == 15
+
+	img[2:4,2:4,6:8] = True
+	area = xs3d.cross_sectional_area(img, [2,2,6], [0,0,1])
+	assert area == 4
+	assert contact == False
 
 def test_8_connectivity():
 	img = np.zeros([4,4,3], dtype=bool, order="F")
@@ -126,10 +132,11 @@ def test_sphere():
 		normal = angle(theta / 50 * 2 * np.pi)
 		area = xs3d.cross_sectional_area(img, pos, normal)
 
-		assert area > np.pi * (r-1.5) * (r-1.5)
+		assert area > np.pi * (r-0.5) * (r-0.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
 		assert ratio < smoothness
+		assert contact == False
 
 		prev_area = area
 
@@ -145,7 +152,7 @@ def test_sphere():
 		normal = angle2(theta / 50 * 2 * np.pi)
 		area = xs3d.cross_sectional_area(img, pos, normal)
 
-		assert area > np.pi * (r-1.5) * (r-1.5)
+		assert area > np.pi * (r-0.5) * (r-0.5)
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
 		assert ratio < smoothness
@@ -164,15 +171,49 @@ def test_off_angle():
 	assert abs(area - approximate_area) < 0.001
 
 
+def test_5x5():
+	binimg = np.ones([5,5,1], dtype=bool)
+
+	area = xs3d.cross_sectional_area(binimg, [0,0,0], [0,0,1])
+
+	assert area == 25
 
 
+def test_symmetric_normals():
+	labels = np.ones((5,5,5), dtype=bool, order="F")
 
+	approximate_area = 5 * 5
 
+	areafn = lambda n: xs3d.cross_sectional_area(labels, [2,2,2], n)
 
+	assert areafn([1,0,0]) == approximate_area
+	assert areafn([-1,0,0]) == approximate_area
+	assert areafn([0,1,0]) == approximate_area
+	assert areafn([0,-1,0]) == approximate_area
+	assert areafn([0,0,1]) == approximate_area
+	assert areafn([0,0,-1]) == approximate_area
 
+	approximate_area = 5 * 5 * np.sqrt(2)
 
+	assert np.isclose(areafn([1,1,0]), approximate_area)
+	assert np.isclose(areafn([1,0,1]), approximate_area)
+	assert np.isclose(areafn([0,1,1]), approximate_area)
+	assert np.isclose(areafn([-1,-1,0]), approximate_area)
+	assert np.isclose(areafn([-1,0,-1]), approximate_area)
+	assert np.isclose(areafn([0,-1,-1]), approximate_area)
+	
+	assert np.isclose(areafn([-1,1,0]), approximate_area)
+	assert np.isclose(areafn([1,-1,0]), approximate_area)
+	assert np.isclose(areafn([0, 1,-1]), approximate_area)
+	assert np.isclose(areafn([0,-1, 1]), approximate_area)
 
+def test_empty():
+	labels = np.zeros([0,0,0], dtype=bool)
 
+	area = xs3d.cross_sectional_area(labels, [0,0,0], [1,1,1])
+	assert area == 0
+	
+	
 
 
 
