@@ -64,7 +64,6 @@ def test_ccl():
 	img[2:4,2:4,6:8] = True
 	area = xs3d.cross_sectional_area(img, [2,2,6], [0,0,1])
 	assert area == 4
-	assert contact == False
 
 def test_8_connectivity():
 	img = np.zeros([4,4,3], dtype=bool, order="F")
@@ -136,7 +135,6 @@ def test_sphere():
 		assert area <= np.pi * (r+0.5) * (r+0.5)
 		ratio = abs(area - prev_area) / area
 		assert ratio < smoothness
-		assert contact == False
 
 		prev_area = area
 
