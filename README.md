@@ -37,6 +37,15 @@ area, contact_warning = xs3d.cross_sectional_area(
 	return_contact=True
 )
 
+# Returns the cross section as a float32 image
+# where each voxel represents its contribution
+# to the cross sectional area
+image = xs3d.cross_section(
+	binary_image, vertex, 
+	normal, resolution, 
+)
+
+
 ```
 
 When using skeletons (one dimensional stick figure representations) to create electrophysiological compartment simulations of neurons, some additional information is required for accuracy. The caliber of the neurite changes over the length of the cell.
