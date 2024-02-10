@@ -4,51 +4,69 @@ import numpy as np
 import xs3d
 
 
-def test_single_voxel():
+@pytest.mark.parametrize("anisotropy", [
+	[1,1,1],
+	[2,2,2],
+	[1000,1000,1000],
+	[1.2, 3.5, 0.1],
+])
+def test_single_voxel(anisotropy):
 	voxel = np.ones([1,1,1], dtype=bool, order="F")
 
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [0,0,1], 
+		voxel, [0,0,0], [0,0,1], anisotropy,
 		return_contact=True
 	)
-	assert area == 1
+	assert np.isclose(area, anisotropy[0] * anisotropy[1])
 	assert contact > 0
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [0,1,0], 
+		voxel, [0,0,0], [0,1,0], anisotropy,
 		return_contact=True
 	)
-	assert area == 1
+	assert np.isclose(area, anisotropy[0] * anisotropy[2])
 	assert contact > 0
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [1,0,0], 
+		voxel, [0,0,0], [1,0,0], anisotropy,
 		return_contact=True
 	)
-	assert area == 1
-	assert contact > 0
-
-	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [1,1,0], 
-		return_contact=True
-	)
-	assert np.isclose(area, np.sqrt(2))
+	assert np.isclose(area, anisotropy[1] * anisotropy[2])
 	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [0,1,1], 
+		voxel, [0,0,0], [1,1,0], anisotropy,
 		return_contact=True
 	)
-	assert np.isclose(area, np.sqrt(2))
+	print(area)
+	assert np.isclose(area, 
+		(
+			np.sqrt(anisotropy[0] * anisotropy[0] + anisotropy[1] * anisotropy[1]) 
+			* anisotropy[2]
+		)
+	)
 	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [1,0,1], 
+		voxel, [0,0,0], [0,1,1], anisotropy,
 		return_contact=True
 	)
-	assert np.isclose(area, np.sqrt(2))
+	assert np.isclose(area, (
+		np.sqrt(anisotropy[1] * anisotropy[1] + anisotropy[2] * anisotropy[2]) 
+		* anisotropy[0]
+	))
 	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [1,1,1], 
+		voxel, [0,0,0], [1,0,1], anisotropy,
+		return_contact=True
+	)
+	assert np.isclose(area, (
+		np.sqrt(anisotropy[0] * anisotropy[0] + anisotropy[2] * anisotropy[2]) 
+		* anisotropy[1]
+	))
+	assert contact > 0
+
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [0,0,0], [1,1,1], #anisotropy
 		return_contact=True
 	)
 	tri = np.sqrt(3) / 2 * ((0.5) ** 2)
@@ -57,10 +75,13 @@ def test_single_voxel():
 	assert contact > 0
 
 	# outside the voxel
-	area, contact = xs3d.cross_sectional_area(voxel, [1,0,0], [1,0,0], return_contact=True)
+	area, contact = xs3d.cross_sectional_area(
+		voxel, [1,0,0], [1,0,0],  anisotropy,
+		return_contact=True
+	)
 	assert area == 0
 	assert contact == False
-	area = xs3d.cross_sectional_area(voxel, [-1,0,0], [1,0,0])
+	area = xs3d.cross_sectional_area(voxel, [-1,0,0], [1,0,0], anisotropy)
 	assert area == 0
 
 	# arbitrary angles
