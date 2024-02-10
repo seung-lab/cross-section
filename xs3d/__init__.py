@@ -92,8 +92,8 @@ def cross_section(
     4nm XY resolution with a 40nm cutting plane in 
     serial sectioning.
 
-  Returns: binary image of voxels contributing 
-    non-zero area to the plane
+  Returns: float32 volume where each voxel's value is its
+    contribution to the cross sectional area
   """
   if anisotropy is None:
     anisotropy = [ 1.0 ] * binimg.ndim
