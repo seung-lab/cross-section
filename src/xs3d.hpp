@@ -11,6 +11,8 @@
 
 namespace {
 
+static uint8_t _dummy_contact = false;
+
 class Vec3 {
 public:
 	float x, y, z;
@@ -323,7 +325,8 @@ float calc_area_at_point(
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
 	const Vec3& normal, const Vec3& anisotropy,
-	std::vector<Vec3>& pts
+	std::vector<Vec3>& pts,
+	float* plane_visualization
 ) {
 	float subtotal = 0.0;
 
@@ -377,6 +380,8 @@ float calc_area_at_point(
 
 					const auto size = pts.size();
 
+					float area = 0.0;
+
 					if (size < 3) {
 						// no contact, point, or line which have zero area
 						continue;
@@ -385,13 +390,19 @@ float calc_area_at_point(
 						throw new std::runtime_error("Invalid polygon.");
 					}
 					else if (size == 3) {
-						subtotal += area_of_triangle(pts, anisotropy);
+						area = area_of_triangle(pts, anisotropy);
 					}
 					else if (size == 4) { 
-						subtotal += area_of_quad(pts, anisotropy);
+						area = area_of_quad(pts, anisotropy);
 					}
 					else { // 5, 6
-						subtotal += area_of_poly(pts, normal, anisotropy);
+						area = area_of_poly(pts, normal, anisotropy);
+					}
+
+					subtotal += area;
+
+					if (plane_visualization != NULL && area > 0.0) {
+						plane_visualization[loc] = area;
 					}
 				}
 			}
@@ -407,7 +418,8 @@ float cross_sectional_area_helper(
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy, // anisotropy
-	uint8_t& contact
+	uint8_t& contact, 
+	float* plane_visualization
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
@@ -521,14 +533,12 @@ float cross_sectional_area_helper(
 			binimg, ccl,
 			sx, sy, sz,
 			cur, pos, normal, anisotropy,
-			pts
+			pts, plane_visualization
 		);
 	}
 
 	return total;
 }
-
-static uint8_t _dummy_contact = false;
 
 };
 
@@ -571,9 +581,58 @@ float cross_sectional_area(
 		binimg, 
 		sx, sy, sz, 
 		pos, normal, anisotropy,
-		contact
+		contact, /*plane_visualization=*/NULL
 	);
 }
+
+float* cross_section(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	const float wx, const float wy, const float wz,
+	float* plane_visualization = NULL
+) {
+	if (plane_visualization == NULL) {
+		plane_visualization = new float[sx * sy * sz]();
+	}
+
+	if (px < 0 || px >= sx) {
+		return plane_visualization;
+	}
+	else if (py < 0 || py >= sy) {
+		return plane_visualization;
+	}
+	else if (pz < 0 || pz >= sz) {
+		return plane_visualization;
+	}
+
+	uint64_t loc = static_cast<uint64_t>(px) + sx * (
+		static_cast<uint64_t>(py) + sy * static_cast<uint64_t>(pz)
+	);
+
+	if (!binimg[loc]) {
+		return plane_visualization;
+	}
+
+	const Vec3 pos(px, py, pz);
+	const Vec3 anisotropy(wx, wy, wz);
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	uint8_t contact = 0;
+
+	cross_sectional_area_helper(
+		binimg, 
+		sx, sy, sz, 
+		pos, normal, anisotropy,
+		contact, plane_visualization
+	);
+
+	return plane_visualization;
+}
+
 
 };
 

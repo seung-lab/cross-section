@@ -62,7 +62,7 @@ def cross_sectional_area(
   if binimg.ndim == 2:
     area, contact = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
-    area, contact = fastxs3d.xsa(binimg, pos, normal, anisotropy)
+    area, contact = fastxs3d.area(binimg, pos, normal, anisotropy)
   else:
     raise ValueError("dimensions not supported")
 
@@ -70,4 +70,51 @@ def cross_sectional_area(
     return (area, contact)
   else:
     return area
+
+def cross_section(
+  binimg:np.ndarray,
+  pos:Sequence[int],
+  normal:Sequence[float],
+  anisotropy:Optional[Sequence[float]] = None,
+) -> np.ndarray:
+  """
+  Compute which voxels are intercepted by a section plane
+  (defined by a normal vector).
+
+  binimg: a binary 2d or 3d numpy image (e.g. a bool datatype)
+  pos: the point in the image from which to extract the section
+    must be an integer (it's an index into the image).
+    e.g. [5,10,2]
+  normal: a vector normal to the section plane, does not
+    need to be a unit vector. e.g. [sqrt(2)/2. sqrt(2)/2, 0]
+  anisotropy: resolution of the x, y, and z axis
+    e.g. [4,4,40] for an electron microscope image with 
+    4nm XY resolution with a 40nm cutting plane in 
+    serial sectioning.
+
+  Returns: binary image of voxels contributing 
+    non-zero area to the plane
+  """
+  if anisotropy is None:
+    anisotropy = [ 1.0 ] * binimg.ndim
+
+  pos = np.array(pos, dtype=np.float32)
+  normal = np.array(normal, dtype=np.float32)
+  anisotropy = np.array(anisotropy, dtype=np.float32)
+
+  if binimg.dtype != bool:
+    raise ValueError(f"A boolean image is required. Got: {binimg.dtype}")
+
+  if np.any(anisotropy <= 0):
+    raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
+
+  if np.all(normal == 0):
+    raise ValueError("normal vector must not be a null vector (all zeros).")
+
+  binimg = np.asfortranarray(binimg)
+
+  if binimg.ndim == 3:
+    return fastxs3d.section(binimg, pos, normal, anisotropy)
+  else:
+    raise ValueError("dimensions not supported")
 
