@@ -262,8 +262,20 @@ def test_moving_window(off, normal):
 
 
 
-	
-	
+def test_cross_section():
+	labels = np.ones((5,5,5), dtype=bool, order="F")
+	pos = (2, 2, 2)
+
+	def angle(theta):
+		return [ 0, np.cos(theta), np.sin(theta) ]
+
+	for theta in range(0,25):
+		normal = angle(theta / 25 * 2 * np.pi)
+		area = xs3d.cross_sectional_area(labels, pos, normal)
+		image = xs3d.cross_section(labels, pos, normal)
+		assert image.dtype == np.float32
+		assert np.isclose(image.sum(), area)
+
 
 
 
