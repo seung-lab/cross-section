@@ -8,7 +8,10 @@ import xs3d
 	[1,1,1],
 	[2,2,2],
 	[1000,1000,1000],
-	[1.2, 3.5, 0.1],
+	[0.0001,0.0001,0.0001],
+	[1, 1, 0.001],
+	[1, 0.001, 1],
+	[0.001, 1, 1],
 ])
 def test_single_voxel(anisotropy):
 	voxel = np.ones([1,1,1], dtype=bool, order="F")
@@ -36,7 +39,6 @@ def test_single_voxel(anisotropy):
 		voxel, [0,0,0], [1,1,0], anisotropy,
 		return_contact=True
 	)
-	print(area)
 	assert np.isclose(area, 
 		(
 			np.sqrt(anisotropy[0] * anisotropy[0] + anisotropy[1] * anisotropy[1]) 
@@ -66,11 +68,16 @@ def test_single_voxel(anisotropy):
 	assert contact > 0
 
 	area, contact = xs3d.cross_sectional_area(
-		voxel, [0,0,0], [1,1,1], #anisotropy
+		voxel, [0,0,0], [1,1,1], anisotropy,
 		return_contact=True
 	)
-	tri = np.sqrt(3) / 2 * ((0.5) ** 2)
-	hexagon = 6 * tri
+	tri = lambda s: np.sqrt(3) / 8 * (s ** 2)
+
+	if 0.001 in anisotropy:
+		# collapses to a 2D shape
+		hexagon = 0.75 # 1/4 + 1/4 + 1/8 + 1/8
+	else:
+		hexagon = 2 * sum([ tri(a) for a in anisotropy ])
 	assert np.isclose(area, hexagon)
 	assert contact > 0
 
