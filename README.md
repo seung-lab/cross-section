@@ -16,6 +16,8 @@ vertex = np.array([200,121,78])
 # normal vector defining sectioning plane
 # it doesn't have to be a unit vector
 # vector can be of arbitrary orientation
+# This vector is given in voxel space, 
+# not physical space (i.e. divide by anisotropy)!
 normal = np.array([0.01, 0.033, 0.9])
 
 # voxel dimensions in e.g. nanometers
