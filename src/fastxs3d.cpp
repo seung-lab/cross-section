@@ -88,8 +88,8 @@ auto projection(
 
 	auto projectionfn = [&](auto dtype) {
 		arr = py::array_t<decltype(dtype), py::array::f_style>(pvoxels);
-		auto out = static_cast<decltype(dtype)*>(arr.request().ptr);
-		auto data = static_cast<decltype(dtype)*>(labels.request().ptr);
+		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
+		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
 		std::fill(out, out + pvoxels, 0);
 
 		xs3d::cross_section_projection<decltype(dtype)>(
