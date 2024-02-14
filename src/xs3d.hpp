@@ -643,10 +643,10 @@ LABEL* cross_section_projection(
 	LABEL* out = NULL
 ) {
 	// maximum possible size of plane
-	const uint64_t psx = 2 * sqrt(3) * std::max(std::max(sx,sy), sz);
+	const uint64_t psx = 2 * sqrt(3) * std::max(std::max(sx,sy), sz) + 1;
 	const uint64_t psy = psx;
 
-	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
+	std::vector<bool> visited(psx * psy);
 
 	if (out == NULL) {
 		out = new LABEL[psx * psy]();
