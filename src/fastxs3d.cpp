@@ -81,7 +81,7 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
-	uint64_t psx = 2 * std::max(std::max(sx,sy), sz);
+	uint64_t psx = 2 * sqrt(3) * std::max(std::max(sx,sy), sz);
 	uint64_t pvoxels = psx * psx;
 
 	py::array arr; 
