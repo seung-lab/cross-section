@@ -125,7 +125,7 @@ def projection(
 ) -> np.ndarray:
   """
   Compute which voxels are intercepted by a section plane
-  (defined by a normal vector).
+  and project them onto a plane.
 
   labels: a binary 2d or 3d numpy image (e.g. a bool datatype)
   pos: the point in the image from which to extract the section
