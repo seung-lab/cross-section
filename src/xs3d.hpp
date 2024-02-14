@@ -695,7 +695,7 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	}
 	basis1 /= basis1.norm();
 
-	Vec3 basis2 = normal.cross(basis1);
+	Vec3 basis2 = basis1.cross(normal);
 	basis2 /= basis2.norm();
 
 	uint64_t plane_pos_x = psx / 2;
