@@ -68,8 +68,63 @@ auto area(
 	return std::tuple(area, contact);
 }
 
+auto projection(	
+	const py::array &labels,
+	const py::array_t<float> &point,
+	const py::array_t<float> &normal
+) {
+	const uint64_t sx = labels.shape()[0];
+	const uint64_t sy = labels.ndim() < 2
+		? 1 
+		: labels.shape()[1];
+	const uint64_t sz = labels.ndim() < 3 
+		? 1 
+		: labels.shape()[2];
+
+	uint64_t psx = 2 * std::max(std::max(sx,sy), sz);
+	uint64_t pvoxels = psx * psx;
+
+	py::array arr; 
+
+	auto projectionfn = [&](auto dtype) {
+		arr = py::array_t<decltype(dtype), py::array::f_style>(pvoxels);
+		auto out = static_cast<decltype(dtype)*>(arr.request().ptr);
+		auto data = static_cast<decltype(dtype)*>(labels.request().ptr);
+		std::fill(out, out + pvoxels, 0);
+
+		xs3d::cross_section_projection<decltype(dtype)>(
+			data,
+			sx, sy, sz,
+			point.at(0), point.at(1), point.at(2),
+			normal.at(0), normal.at(1), normal.at(2),
+			out
+		);
+	};
+
+	int data_width = labels.dtype().itemsize();
+
+    if (data_width == 1) {
+    	projectionfn(uint8_t{});
+    }
+    else if (data_width == 2) {
+    	projectionfn(uint16_t{});
+    }
+    else if (data_width == 4) {
+    	projectionfn(uint32_t{});
+    }
+    else if (data_width == 8) {
+    	projectionfn(uint64_t{});
+    }
+    else {
+    	throw new std::runtime_error("should never happen");
+    }
+
+	return arr.reshape({ psx, psx }).view(py::str(labels.dtype()));
+}
+
 PYBIND11_MODULE(fastxs3d, m) {
 	m.doc() = "Finding cross sectional area in 3D voxelized images."; 
+	m.def("projection", &projection, "Project a cross section of a 3D image onto a 2D plane");
 	m.def("section", &section, "Return a binary image that highlights the voxels contributing area to a cross section.");
 	m.def("area", &area, "Find the cross sectional area for a given binary image, point, and normal vector.");
 }

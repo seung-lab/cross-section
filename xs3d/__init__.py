@@ -118,3 +118,35 @@ def cross_section(
   else:
     raise ValueError("dimensions not supported")
 
+def projection(
+  labels:np.ndarray,
+  pos:Sequence[int],
+  normal:Sequence[float],
+) -> np.ndarray:
+  """
+  Compute which voxels are intercepted by a section plane
+  (defined by a normal vector).
+
+  labels: a binary 2d or 3d numpy image (e.g. a bool datatype)
+  pos: the point in the image from which to extract the section
+    must be an integer (it's an index into the image).
+    e.g. [5,10,2]
+  normal: a vector normal to the section plane, does not
+    need to be a unit vector. e.g. [sqrt(2)/2. sqrt(2)/2, 0]
+
+  Returns: ndarray
+  """
+  pos = np.array(pos, dtype=np.float32)
+  normal = np.array(normal, dtype=np.float32)
+
+  if np.all(normal == 0):
+    raise ValueError("normal vector must not be a null vector (all zeros).")
+
+  labels = np.asfortranarray(labels)
+
+  if labels.ndim == 3:
+    return fastxs3d.projection(labels, pos, normal)
+  else:
+    raise ValueError("dimensions not supported")
+
+

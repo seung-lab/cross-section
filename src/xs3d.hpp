@@ -633,6 +633,126 @@ float* cross_section(
 	return plane_visualization;
 }
 
+template <typename LABEL>
+LABEL* cross_section_projection(
+	const LABEL* labels,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	LABEL* out = NULL
+) {
+	// maximum possible size of plane
+	const uint64_t psx = 2 * std::max(std::max(sx,sy), sz);
+	const uint64_t psy = psx;
+
+	std::unique_ptr<bool[]> visited(new bool[psx * psy]());
+
+	if (out == NULL) {
+		out = new LABEL[psx * psy]();
+	}
+
+	if (px < 0 || px >= sx) {
+		return out;
+	}
+	else if (py < 0 || py >= sy) {
+		return out;
+	}
+	else if (pz < 0 || pz >= sz) {
+		return out;
+	}
+
+	const Vec3 pos(px, py, pz);
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	Vec3 basis1 = normal.cross(ihat);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(jhat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	uint64_t plane_pos_x = psx / 2;
+	uint64_t plane_pos_y = psy / 2;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<uint64_t> stack;
+	stack.push(ploc);
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+			continue;
+		}
+		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+
+		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		);
+
+		out[ploc] = labels[loc];
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		uint64_t upleft = ploc - psx - 1; 
+		uint64_t downleft = ploc + psx - 1;
+		uint64_t upright = ploc - psx + 1;
+		uint64_t downright = ploc + psx + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+
+		if (x > 0 && y > 0 && !visited[upleft]) {
+			stack.push(upleft);
+		}
+		if (x < psx - 1 && y > 0 && !visited[upright]) {
+			stack.push(upright);
+		}
+		if (x > 0 && y < psy - 1 && !visited[downleft]) {
+			stack.push(downleft);
+		}
+		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
+			stack.push(downright);
+		}
+	}
+
+	return out;
+}
 
 };
 
