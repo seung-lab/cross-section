@@ -92,34 +92,49 @@ auto projection(
 		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
 		std::fill(out, out + pvoxels, 0);
 
-		xs3d::cross_section_projection<decltype(dtype)>(
+		std::tuple<decltype(dtype)*, xs3d::Bbox2d> tup = xs3d::cross_section_projection<decltype(dtype)>(
 			data,
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			out
 		);
+
+		xs3d::Bbox2d bbox = std::get<1>(tup);
+
+		bbox.print();
+
+		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
+	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
+
+	    // Copy data from input_array to cutout_array
+	    ssize_t i = 0;
+	    for (ssize_t y = bbox.y_min; y < bbox.y_max + 1; y++) {
+	        for (ssize_t x = bbox.x_min; x < bbox.x_max + 1; x++, i++) {
+	            cutout_ptr[i] = out[x + psx * y];
+	        }
+	    }
+
+		return cutout.view(py::str(labels.dtype()));
 	};
 
 	int data_width = labels.dtype().itemsize();
 
     if (data_width == 1) {
-    	projectionfn(uint8_t{});
+    	return projectionfn(uint8_t{});
     }
     else if (data_width == 2) {
-    	projectionfn(uint16_t{});
+    	return projectionfn(uint16_t{});
     }
     else if (data_width == 4) {
-    	projectionfn(uint32_t{});
+    	return projectionfn(uint32_t{});
     }
     else if (data_width == 8) {
-    	projectionfn(uint64_t{});
+    	return projectionfn(uint64_t{});
     }
     else {
     	throw new std::runtime_error("should never happen");
     }
-
-	return arr.reshape({ psx, psx }).view(py::str(labels.dtype()));
 }
 
 PYBIND11_MODULE(fastxs3d, m) {

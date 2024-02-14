@@ -144,9 +144,16 @@ def projection(
 
   labels = np.asfortranarray(labels)
 
-  if labels.ndim == 3:
-    return fastxs3d.projection(labels, pos, normal)
-  else:
-    raise ValueError("dimensions not supported")
+  if labels.ndim != 3:
+    raise ValueError(f"{labels.ndim} dimensions not supported")
+
+  return fastxs3d.projection(labels, pos, normal)
+
+
+
+
+
+
+    
 
 
