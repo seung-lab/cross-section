@@ -81,7 +81,9 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
-	uint64_t psx = 2 * sqrt(3) * std::max(std::max(sx,sy), sz) + 1;
+	// rational approximation of sqrt(3) is 97/56
+	// result is more likely to be same across compilers
+	uint64_t psx = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
 	uint64_t pvoxels = psx * psx;
 
 	py::array arr; 
