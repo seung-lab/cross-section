@@ -118,7 +118,7 @@ def cross_section(
   else:
     raise ValueError("dimensions not supported")
 
-def projection(
+def slice(
   labels:np.ndarray,
   pos:Sequence[int],
   normal:Sequence[float],
@@ -126,6 +126,10 @@ def projection(
   """
   Compute which voxels are intercepted by a section plane
   and project them onto a plane.
+
+  NB: The orientation of this projection is not guaranteed. 
+  The axes can be reflected and transposed compared to what
+  you might expect.
 
   labels: a binary 2d or 3d numpy image (e.g. a bool datatype)
   pos: the point in the image from which to extract the section
