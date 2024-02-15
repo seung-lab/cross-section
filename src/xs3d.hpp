@@ -689,13 +689,13 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	Vec3 basis1 = normal.cross(ihat);
+	Vec3 basis1 = jhat.cross(normal);
 	if (basis1.is_null()) {
-		basis1 = normal.cross(jhat);
+		basis1 = normal.cross(ihat);
 	}
 	basis1 /= basis1.norm();
 
-	Vec3 basis2 = basis1.cross(normal);
+	Vec3 basis2 = normal.cross(basis1);
 	basis2 /= basis2.norm();
 
 	uint64_t plane_pos_x = psx / 2;
