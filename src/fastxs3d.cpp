@@ -87,7 +87,7 @@ auto projection(
 	py::array arr; 
 
 	auto projectionfn = [&](auto dtype) {
-		arr = py::array_t<decltype(dtype), py::array::f_style>(pvoxels);
+		arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
 		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
 		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
 		std::fill(out, out + pvoxels, 0);
@@ -101,20 +101,22 @@ auto projection(
 		);
 
 		xs3d::Bbox2d bbox = std::get<1>(tup);
-
-		bbox.print();
+		bbox.x_max++;
+		bbox.y_max++;
 
 		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
 	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
 
-	    // Copy data from input_array to cutout_array
-	    ssize_t i = 0;
-	    for (ssize_t y = bbox.y_min; y < bbox.y_max + 1; y++) {
-	        for (ssize_t x = bbox.x_min; x < bbox.x_max + 1; x++, i++) {
-	            cutout_ptr[i] = out[x + psx * y];
+	    ssize_t csx = bbox.sx();
+
+	    for (ssize_t y = bbox.y_min; y < bbox.y_max; y++) {
+	        for (ssize_t x = bbox.x_min; x < bbox.x_max; x++) {
+	            cutout_ptr[
+	            	(x - bbox.x_min) + csx * (y - bbox.y_min)
+	            ] = out[x + psx * y];
 	        }
 	    }
-
+	    
 		return cutout.view(py::str(labels.dtype()));
 	};
 
