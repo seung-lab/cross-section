@@ -757,18 +757,6 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		uint64_t upright = ploc - psx + 1;
 		uint64_t downright = ploc + psx + 1;
 
-		if (x > 0 && !visited[left]) {
-			stack.push(left);
-		}
-		if (x < psx - 1 && !visited[right]) {
-			stack.push(right);
-		}
-		if (y > 0 && !visited[up]) {
-			stack.push(up);
-		}
-		if (y < psy - 1 && !visited[down]) {
-			stack.push(down);
-		}
 
 		if (x > 0 && y > 0 && !visited[upleft]) {
 			stack.push(upleft);
@@ -781,6 +769,19 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		}
 		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
 			stack.push(downright);
+		}
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
 		}
 	}
 
