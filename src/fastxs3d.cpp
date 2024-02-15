@@ -109,10 +109,10 @@ auto projection(
 		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
 	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
 
-	    ssize_t csx = bbox.sx();
+	    int64_t csx = bbox.sx();
 
-	    for (ssize_t y = bbox.y_min; y < bbox.y_max; y++) {
-	        for (ssize_t x = bbox.x_min; x < bbox.x_max; x++) {
+	    for (int64_t y = bbox.y_min; y < bbox.y_max; y++) {
+	        for (int64_t x = bbox.x_min; x < bbox.x_max; x++) {
 	            cutout_ptr[
 	            	(x - bbox.x_min) + csx * (y - bbox.y_min)
 	            ] = out[x + psx * y];
