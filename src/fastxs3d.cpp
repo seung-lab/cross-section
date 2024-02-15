@@ -68,8 +68,82 @@ auto area(
 	return std::tuple(area, contact);
 }
 
+auto projection(	
+	const py::array &labels,
+	const py::array_t<float> &point,
+	const py::array_t<float> &normal
+) {
+	const uint64_t sx = labels.shape()[0];
+	const uint64_t sy = labels.ndim() < 2
+		? 1 
+		: labels.shape()[1];
+	const uint64_t sz = labels.ndim() < 3 
+		? 1 
+		: labels.shape()[2];
+
+	// rational approximation of sqrt(3) is 97/56
+	// result is more likely to be same across compilers
+	uint64_t psx = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+	uint64_t pvoxels = psx * psx;
+
+	py::array arr; 
+
+	auto projectionfn = [&](auto dtype) {
+		arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
+		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
+		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
+		std::fill(out, out + pvoxels, 0);
+
+		std::tuple<decltype(dtype)*, xs3d::Bbox2d> tup = xs3d::cross_section_projection<decltype(dtype)>(
+			data,
+			sx, sy, sz,
+			point.at(0), point.at(1), point.at(2),
+			normal.at(0), normal.at(1), normal.at(2),
+			out
+		);
+
+		xs3d::Bbox2d bbox = std::get<1>(tup);
+		bbox.x_max++;
+		bbox.y_max++;
+
+		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
+	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
+
+	    ssize_t csx = bbox.sx();
+
+	    for (ssize_t y = bbox.y_min; y < bbox.y_max; y++) {
+	        for (ssize_t x = bbox.x_min; x < bbox.x_max; x++) {
+	            cutout_ptr[
+	            	(x - bbox.x_min) + csx * (y - bbox.y_min)
+	            ] = out[x + psx * y];
+	        }
+	    }
+	    
+		return cutout.view(py::str(labels.dtype()));
+	};
+
+	int data_width = labels.dtype().itemsize();
+
+    if (data_width == 1) {
+    	return projectionfn(uint8_t{});
+    }
+    else if (data_width == 2) {
+    	return projectionfn(uint16_t{});
+    }
+    else if (data_width == 4) {
+    	return projectionfn(uint32_t{});
+    }
+    else if (data_width == 8) {
+    	return projectionfn(uint64_t{});
+    }
+    else {
+    	throw new std::runtime_error("should never happen");
+    }
+}
+
 PYBIND11_MODULE(fastxs3d, m) {
 	m.doc() = "Finding cross sectional area in 3D voxelized images."; 
+	m.def("projection", &projection, "Project a cross section of a 3D image onto a 2D plane");
 	m.def("section", &section, "Return a binary image that highlights the voxels contributing area to a cross section.");
 	m.def("area", &area, "Find the cross sectional area for a given binary image, point, and normal vector.");
 }

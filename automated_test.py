@@ -304,7 +304,10 @@ def test_cross_section():
 		assert image.dtype == np.float32
 		assert np.isclose(image.sum(), area)
 
-
+def test_slice():
+	labels = np.arange(9, dtype=np.uint8).reshape([3,3,1], order="F")
+	slc = xs3d.slice(labels, [0,0,0], [0,0,1])
+	assert np.all(slc == labels[:,:,0])
 
 
 

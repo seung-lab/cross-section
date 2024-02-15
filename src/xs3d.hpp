@@ -423,7 +423,9 @@ float cross_sectional_area_helper(
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
-	uint64_t plane_size = 2 * sqrt(3) * std::max(std::max(sx,sy), sz) + 1;
+	// rational approximation of sqrt(3) is 97/56
+	// more reliable behavior across compilers/architectures
+	uint64_t plane_size = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
 
 	// maximum possible size of plane
 	uint64_t psx = plane_size;
@@ -544,6 +546,27 @@ float cross_sectional_area_helper(
 
 namespace xs3d {
 
+struct Bbox2d {
+	int64_t x_min, x_max;
+	int64_t y_min, y_max;
+	Bbox2d() : x_min(0), x_max(0), y_min(0), y_max(0) {};
+	Bbox2d(int64_t x_min, int64_t x_max, int64_t y_min, int64_t y_max) 
+		: x_min(x_min), x_max(x_max), y_min(y_min), y_max(y_max) {};
+
+	int64_t sx() const {
+		return x_max - x_min;
+	}
+	int64_t sy() const {
+		return y_max - y_min;
+	}
+	int64_t pixels() const {
+		return sx() * sy();
+	}
+	void print() const {
+		printf("Bbox2d(%llu, %llu, %llu, %llu)\n", x_min, x_max, y_min, y_max);
+	}
+};
+
 float cross_sectional_area(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -633,6 +656,121 @@ float* cross_section(
 	return plane_visualization;
 }
 
+template <typename LABEL>
+std::tuple<LABEL*, Bbox2d> cross_section_projection(
+	const LABEL* labels,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	LABEL* out = NULL
+) {
+	// maximum possible size of plane
+	// rational approximation of sqrt(3) is 97/56
+	const uint64_t psx = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+	const uint64_t psy = psx;
+
+	Bbox2d bbx;
+
+	std::vector<bool> visited(psx * psy);
+
+	if (out == NULL) {
+		out = new LABEL[psx * psy]();
+	}
+
+	if (px < 0 || px >= sx) {
+		return std::tuple(out, bbx);
+	}
+	else if (py < 0 || py >= sy) {
+		return std::tuple(out, bbx);
+	}
+	else if (pz < 0 || pz >= sz) {
+		return std::tuple(out, bbx);
+	}
+
+	const Vec3 pos(px, py, pz);
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	Vec3 basis1 = jhat.cross(normal);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(ihat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	uint64_t plane_pos_x = psx / 2;
+	uint64_t plane_pos_y = psy / 2;
+
+	bbx.x_min = plane_pos_x;
+	bbx.x_max = plane_pos_x;
+	bbx.y_min = plane_pos_y;
+	bbx.y_max = plane_pos_y;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<uint64_t> stack;
+	stack.push(ploc);
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+			continue;
+		}
+		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+
+		bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
+		bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
+		bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
+		bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
+
+		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		);
+
+		out[ploc] = labels[loc];
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+	}
+
+	return std::tuple(out, bbx);
+}
 
 };
 
