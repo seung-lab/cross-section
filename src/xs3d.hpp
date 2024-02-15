@@ -724,11 +724,6 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		uint64_t y = ploc / psx;
 		uint64_t x = ploc - y * psx;
 
-		bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
-		bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
-		bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
-		bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
-
 		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
 		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
 
@@ -740,6 +735,11 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
 			continue;
 		}
+
+		bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
+		bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
+		bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
+		bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
 
 		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
 			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
