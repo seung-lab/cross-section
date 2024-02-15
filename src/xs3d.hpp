@@ -423,7 +423,9 @@ float cross_sectional_area_helper(
 ) {
 	std::vector<bool> ccl(sx * sy * sz);
 
-	uint64_t plane_size = 2 * sqrt(3) * std::max(std::max(sx,sy), sz) + 1;
+	// rational approximation of sqrt(3) is 71/41
+	// more reliable behavior across compilers/architectures
+	uint64_t plane_size = 2 * 71 * std::max(std::max(sx,sy), sz) / 41 + 1;
 
 	// maximum possible size of plane
 	uint64_t psx = plane_size;
@@ -664,7 +666,8 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	LABEL* out = NULL
 ) {
 	// maximum possible size of plane
-	const uint64_t psx = 2 * sqrt(3) * std::max(std::max(sx,sy), sz) + 1;
+	// rational approximation of sqrt(3) is 71/41
+	const uint64_t psx = 2 * 71 * std::max(std::max(sx,sy), sz) / 41 + 1;
 	const uint64_t psy = psx;
 
 	Bbox2d bbx;
