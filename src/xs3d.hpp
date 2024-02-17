@@ -294,7 +294,7 @@ void check_intersections(
 		? 4
 		: 6;
 
-	constexpr float bound = 0.5 + 2e-6;
+	constexpr float bound = 0.5 + 2e-5;
 
 	for (int i = 0; i < 12; i++) {
 		Vec3 pipe = pipes[i >> 2];
@@ -322,13 +322,13 @@ void check_intersections(
 		float t = proj / proj2;
 		Vec3 nearest_pt = corner + pipe * t;
 
-		if (nearest_pt.x > (x+bound) || nearest_pt.x < (x-bound)) {
+		if (std::abs(nearest_pt.x - x) >= bound) {
 			continue;
 		}
-		else if (nearest_pt.y > (y+bound) || nearest_pt.y < (y-bound)) {
+		else if (std::abs(nearest_pt.y - y) >= bound) {
 			continue;
 		}
-		else if (nearest_pt.z > (z+bound) || nearest_pt.z < (z-bound)) {
+		else if (std::abs(nearest_pt.z - z) >= bound) {
 			continue;
 		}
 
