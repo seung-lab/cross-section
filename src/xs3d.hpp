@@ -207,26 +207,26 @@ float area_of_poly(
 	}
 
 	Vec3 prime_spoke = (pts[0] - centroid);
+	prime_spoke /= prime_spoke.norm();
 
 	Vec3 basis = prime_spoke.cross(normal);
 	basis /= basis.norm();
-	
+
+	// acos is expensive, but we just need a number that
+	// increments from 0 to a maximum value at 180deg so
+	// just do 1 - cos, which will be 0 at 0deg and 2 at 180deg
 	auto angularOrder = [&](const Vec3& a, const Vec3& b) {
-		float cosine = a.dot(prime_spoke) / a.norm();
-		float a_angle = std::acos(cosine);
-
+		float a_val = 1 - (a.dot(prime_spoke) / a.norm());
 		if (a.dot(basis) < 0) {
-			a_angle = -a_angle;
+			a_val = -a_val;
 		}
 
-		cosine = b.dot(prime_spoke) / b.norm();
-		float b_angle = std::acos(cosine);
-		
+		float b_val = 1 - (b.dot(prime_spoke) / b.norm());
 		if (b.dot(basis) < 0) {
-			b_angle = -b_angle;
+			b_val = -b_val;
 		}
 
-		return a_angle < b_angle;
+		return a_val < b_val;
 	};
 
 	std::sort(spokes.begin(), spokes.end(), angularOrder);
