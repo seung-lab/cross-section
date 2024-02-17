@@ -278,8 +278,26 @@ void check_intersections(
 		c[0], c[2], c[4], c[6]
 	};
 
-	Vec3 xyz(x,y,z);
-	xyz += -0.5;
+	Vec3 minpt(x,y,z);
+	minpt += -0.5;
+
+	Vec3 pos2 = pos - minpt;
+
+	float cpt[7] = { // corner projections template
+		(pos2 - c[0]).dot(normal),
+		(pos2 - c[1]).dot(normal),
+		(pos2 - c[2]).dot(normal),
+		(pos2 - c[3]).dot(normal),
+		(pos2 - c[4]).dot(normal),
+		(pos2 - c[5]).dot(normal),
+		(pos2 - c[6]).dot(normal)
+	};
+
+	float corner_projections[12] = {
+		cpt[0], cpt[1], cpt[2], cpt[3],
+		cpt[0], cpt[1], cpt[4], cpt[5],
+		cpt[0], cpt[2], cpt[4], cpt[6]
+	};
 
 	auto inlist = [&](const Vec3& pt){
 		for (Vec3& p : pts) {
@@ -297,12 +315,10 @@ void check_intersections(
 	constexpr float bound = 0.5 + 2e-5;
 
 	for (int i = 0; i < 12; i++) {
-		Vec3 pipe = pipes[i >> 2];
 		Vec3 corner = pipe_points[i];
-		corner += xyz;
+		corner += minpt;
 		
-		Vec3 cur_vec = pos - corner;
-		float proj = cur_vec.dot(normal);
+		float proj = corner_projections[i];
 
 		if (proj == 0) {
 			if (!inlist(corner)) {
@@ -318,6 +334,8 @@ void check_intersections(
 		if (proj2 == 0) {
 			continue;
 		}
+
+		Vec3 pipe = pipes[i >> 2];
 
 		float t = proj / proj2;
 		Vec3 nearest_pt = corner + pipe * t;
