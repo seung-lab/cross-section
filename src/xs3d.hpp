@@ -67,9 +67,31 @@ public:
 	bool operator==(const Vec3& other) const {
 		return x == other.x && y == other.y && z == other.z;
 	}
-
+	float& operator[](const int idx) {
+		if (idx == 0) {
+			return x;
+		}
+		else if (idx == 1) {
+			return y;
+		}
+		else if (idx == 2) {
+			return z;
+		}
+		else {
+			throw new std::runtime_error("Index out of bounds.");
+		}
+	}
 	float dot(const Vec3& o) const {
 		return x * o.x + y * o.y + z * o.z;
+	}
+	Vec3 abs() const {
+		return Vec3(std::abs(x), std::abs(y), std::abs(z));
+	}
+	int argmax() const {
+		if (x >= y) {
+			return (x >= z) ? 0 : 2;
+		}
+		return (y >= z) ? 1 : 2;
 	}
 	float max() const {
 		return std::max(x,std::max(y,z));
@@ -656,6 +678,47 @@ float* cross_section(
 	return plane_visualization;
 }
 
+std::tuple<Vec3, Vec3> create_orthonormal_basis(const Vec3& normal) {
+	Vec3 basis1 = normal.cross(jhat);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(ihat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	// try to sort and reflect the bases to approximate
+	// a standard basis. First, make basis1 more like the
+	// earlier letter of XY, XZ, or YZ and if its
+	// pointed into the negatives, reflect it into
+	// the positive direction.
+
+	int argmax1 = basis1.abs().argmax();
+	int argmax2 = basis2.abs().argmax();
+
+	if (argmax2 < argmax1) {
+		std::swap(basis1, basis2);
+	}
+
+	Vec3 positive_direction = Vec3(1,1,1);
+
+	Vec3 zone = positive_direction;
+	if (normal.dot(positive_direction) < 0) {
+		zone = -positive_direction;
+	}
+
+	if (basis1.dot(zone) < 0) {
+		basis1 = -basis1;
+	}
+
+	if (basis2.dot(zone) < 0) {
+		basis2 = -basis2;
+	}
+
+	return std::tuple(basis1, basis2);
+}
+
 template <typename LABEL>
 std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const LABEL* labels,
@@ -692,14 +755,9 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	Vec3 basis1 = jhat.cross(normal);
-	if (basis1.is_null()) {
-		basis1 = normal.cross(ihat);
-	}
-	basis1 /= basis1.norm();
-
-	Vec3 basis2 = normal.cross(basis1);
-	basis2 /= basis2.norm();
+	auto bases = create_orthonormal_basis(normal);
+	Vec3 basis1 = std::get<0>(bases);
+	Vec3 basis2 = std::get<1>(bases);
 
 	uint64_t plane_pos_x = psx / 2;
 	uint64_t plane_pos_y = psy / 2;
