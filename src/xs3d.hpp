@@ -143,6 +143,22 @@ float area_of_triangle(
 	return v3.norm() / 2.0;
 }
 
+// area of a quad is ||v1 x v2||
+// but there are two situations:
+// in the first, you have the vectors
+// representing the length and width
+// of the rectangle, which is the usual
+// case and the defintion of the cross product
+// as a determinant -> area of a paralllepiped 
+// works. 
+// The second situation is a side and a hypotenuse
+// of the rectangle. In that case, let v be a side and
+// h be the hypotenuse. ||v x h|| / 2 = area of triangle
+// However, the other triangle has the same formula, and
+// 2 * || v x h || / 2 = || v x h ||
+
+// so weirdly, you can just pick two vectors 
+// and cross them!
 float area_of_quad(
 	const std::vector<Vec3>& pts, 
 	const Vec3& anisotropy
@@ -151,41 +167,8 @@ float area_of_quad(
 	v1 *= anisotropy;
 	Vec3 v2 = pts[2] - pts[0];
 	v2 *= anisotropy;
-	Vec3 v3 = pts[3] - pts[0];
-	v3 *= anisotropy;
-
-	float norm1 = v1.norm();
-	float norm2 = v2.norm();
-	float norm3 = v3.norm();
-
-  // remove the most distant point so we are
-  // not creating a faulty quad based on the 
-  // diagonal. Use a decision tree since it's
-  // both more efficient and less annoying 
-  // than some list operations.
-
-	if (norm1 > norm2) {
-		if (norm1 > norm3) {
-			return v2.cross(v3).norm();
-		}
-		else if (norm3 > norm2) {
-			return v1.cross(v2).norm();
-		}
-		else {
-			return v1.cross(v3).norm();
-		}
-	}
-	else if (norm2 > norm3) {
-		if (norm1 > norm3) {
-			return v1.cross(v3).norm();
-		}
-		else {
-			return v1.cross(v2).norm();
-		}
-	}
-	else {
-		return v1.cross(v2).norm();
-	}
+	
+	return v1.cross(v2).norm();
 }
 
 float area_of_poly(
