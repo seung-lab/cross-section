@@ -255,10 +255,8 @@ void check_intersections(
 		khat.dot(normal)
 	};
 
-	const Vec3 pipe_points[12] = {
-		c[0], c[1], c[2], c[3],
-		c[0], c[1], c[4], c[5],
-		c[0], c[2], c[4], c[6]
+	const Vec3 pipe_points[4] = {
+		c[0], c[3], c[5], c[6]
 	};
 
 	Vec3 minpt(x,y,z);
@@ -266,24 +264,15 @@ void check_intersections(
 
 	Vec3 pos2 = pos - minpt;
 
-	float cpt[7] = { // corner projections template
+	float corner_projections[4] = {
 		(pos2 - c[0]).dot(normal),
-		(pos2 - c[1]).dot(normal),
-		(pos2 - c[2]).dot(normal),
 		(pos2 - c[3]).dot(normal),
-		(pos2 - c[4]).dot(normal),
 		(pos2 - c[5]).dot(normal),
-		(pos2 - c[6]).dot(normal)
-	};
-
-	float corner_projections[12] = {
-		cpt[0], cpt[1], cpt[2], cpt[3],
-		cpt[0], cpt[1], cpt[4], cpt[5],
-		cpt[0], cpt[2], cpt[4], cpt[6]
+		(pos2 - c[6]).dot(normal),
 	};
 
 	auto inlist = [&](const Vec3& pt){
-		for (Vec3& p : pts) {
+		for (const Vec3& p : pts) {
 			if (p.close(pt)) {
 				return true;
 			}
@@ -298,10 +287,10 @@ void check_intersections(
 	constexpr float bound = 0.5 + 2e-5;
 
 	for (int i = 0; i < 12; i++) {
-		Vec3 corner = pipe_points[i];
+		Vec3 corner = pipe_points[i & 0b11];
 		corner += minpt;
 		
-		float proj = corner_projections[i];
+		float proj = corner_projections[i & 0b11];
 
 		if (proj == 0) {
 			if (!inlist(corner)) {
