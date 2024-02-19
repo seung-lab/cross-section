@@ -103,7 +103,7 @@ public:
 	float norm() const {
 		return sqrt(x*x + y*y + z*z);
 	}
-	bool close(const Vec3& o) {
+	bool close(const Vec3& o) const {
 		return (*this - o).norm() < 1e-4;
 	}
 	Vec3 cross(const Vec3& o) const {
