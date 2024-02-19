@@ -78,10 +78,10 @@ def cross_sectional_area_2d(
   sx, sy = binimg.shape
 
   if pos[0] >= sx or pos[0] < 0:
-    raise ValueError(f"{pos[0]} is outside of the x-range 0 to {sx}.")
+    return 0.0
 
   if pos[1] >= sy or pos[1] < 0:
-    raise ValueError(f"{pos[1]} is outside of the y-range 0 to {sy}.")
+    return 0.0
 
   if binimg[int(pos[0]), int(pos[1])] == False:
     return 0.0
