@@ -17,6 +17,7 @@ static uint8_t _dummy_contact = false;
 class Vec3 {
 public:
 	float x, y, z;
+	Vec3() : x(0), y(0), z(0) {}
 	Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
 
 	Vec3 operator+(const Vec3& other) const {
@@ -293,13 +294,14 @@ void check_intersections(
 	constexpr float epsilon = 2e-5;
 	constexpr float bound = 0.5 + epsilon;
 
-	for (int i = 0; i < 12; i++) {
-		Vec3 corner = pipe_points[i & 0b11];
-		corner += minpt;
-		
+	Vec3 corner;
+
+	for (int i = 0; i < 12; i++) {		
 		float proj = corner_projections[i & 0b11];
 
 		if (proj == 0) {
+			corner = pipe_points[i & 0b11];
+			corner += minpt;
 			if (i < 4 && !inlist(corner)) {
 				pts.push_back(corner);
 			}
@@ -314,9 +316,14 @@ void check_intersections(
 			continue;
 		}
 
-		Vec3 pipe = pipes[i >> 2];
-
 		float t = proj / proj2;
+		if (std::abs(t) > 1 + epsilon) {
+			continue;
+		}
+
+		Vec3 pipe = pipes[i >> 2];
+		corner = pipe_points[i & 0b11];
+		corner += minpt;
 		Vec3 nearest_pt = corner + pipe * t;
 
 		if (std::abs(nearest_pt.x - x) >= bound) {
