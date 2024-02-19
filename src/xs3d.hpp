@@ -41,6 +41,9 @@ public:
 	Vec3 operator-(const Vec3& other) const {
 		return Vec3(x - other.x, y - other.y, z - other.z);
 	}
+	Vec3 operator-(const float scalar) const {
+		return Vec3(x - scalar, y - scalar, z - scalar);
+	}
 	Vec3 operator*(const float scalar) const {
 		return Vec3(x * scalar, y * scalar, z * scalar);
 	}
@@ -103,8 +106,11 @@ public:
 	float norm() const {
 		return sqrt(x*x + y*y + z*z);
 	}
+	float norm2() const {
+		return x*x + y*y + z*z;
+	}
 	bool close(const Vec3& o) const {
-		return (*this - o).norm() < 1e-4;
+		return (*this - o).norm2() < 1e-4;
 	}
 	Vec3 cross(const Vec3& o) const {
 		return Vec3(
@@ -284,7 +290,8 @@ void check_intersections(
 		? 4
 		: 6;
 
-	constexpr float bound = 0.5 + 2e-5;
+	constexpr float epsilon = 2e-5;
+	constexpr float bound = 0.5 + epsilon;
 
 	for (int i = 0; i < 12; i++) {
 		Vec3 corner = pipe_points[i & 0b11];
@@ -293,7 +300,7 @@ void check_intersections(
 		float proj = corner_projections[i & 0b11];
 
 		if (proj == 0) {
-			if (!inlist(corner)) {
+			if (i < 4 && !inlist(corner)) {
 				pts.push_back(corner);
 			}
 			continue;
@@ -322,7 +329,11 @@ void check_intersections(
 			continue;
 		}
 
-		if (!inlist(nearest_pt)) {
+		// if t = -1, 0, 1 we're on a corner, which are the only areas where a
+		// duplicate vertex is possible.
+		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-1) < epsilon);
+
+		if (!iscorner || !inlist(nearest_pt)) {
 			pts.push_back(nearest_pt);
 
 			if (pts.size() >= max_pts) {
