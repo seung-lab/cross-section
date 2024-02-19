@@ -90,7 +90,7 @@ def cross_sectional_area_2d(
   nhat = nhat / np.sqrt(nhat[0] ** 2 + nhat[1] ** 2)
 
   ccl = get_ccl(binimg, pos, vec)
-  label = ccl[pos[0], pos[1]]
+  label = ccl[int(pos[0]), int(pos[1])]
 
   total = 0.0
 
