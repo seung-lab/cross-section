@@ -78,13 +78,13 @@ def cross_sectional_area_2d(
   sx, sy = binimg.shape
 
   if pos[0] >= sx or pos[0] < 0:
-    return 0.0
+    return [0.0, 0b00111111]
 
   if pos[1] >= sy or pos[1] < 0:
-    return 0.0
+    return [0.0, 0b00111111]
 
   if binimg[int(pos[0]), int(pos[1])] == False:
-    return 0.0
+    return [0.0, 0b00111111]
 
   nhat = np.array([ -vec[1], vec[0] ], dtype=np.float32)
   nhat = nhat / np.sqrt(nhat[0] ** 2 + nhat[1] ** 2)

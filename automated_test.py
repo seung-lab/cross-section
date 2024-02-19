@@ -382,6 +382,15 @@ def test_2d():
     area = xs3d.cross_sectional_area(labels, [0,0], [-1,1], [1,1])
     assert np.isclose(area, 3 * np.sqrt(2))
 
+    area = xs3d.cross_sectional_area(labels, [-1,0], [-1,1], [1,1])
+    assert area == 0
+
+    area = xs3d.cross_sectional_area(labels, [1,-1], [-1,1], [1,1])
+    assert area == 0
+
+    labels[1,1] = 0
+    area = xs3d.cross_sectional_area(labels, [1,1], [0,1], [1,1])
+    assert area == 0
 
 
 
