@@ -309,6 +309,12 @@ def test_slice():
     slc = xs3d.slice(labels, [0,0,0], [0,0,1])
     assert np.all(slc == labels[:,:,0])
 
+    with pytest.raises(ValueError):
+        area = xs3d.slice(labels, [0,0,0], [0,0,0])
+
+    labels = np.ones([3,3,3,3], dtype=bool, order="F")
+    with pytest.raises(ValueError):
+        area = xs3d.slice(labels, [0,0,0], [0,0,1])
 
 def test_cross_sectional_area_inputs():
     labels = np.arange(9, dtype=np.uint8).reshape([3,3,1], order="F")
@@ -330,5 +336,32 @@ def test_cross_sectional_area_inputs():
     with pytest.raises(ValueError):
         area = xs3d.cross_sectional_area(labels, [0,0,0], [0,0,1], [-1,-1,-1])
 
+    labels = np.ones([3,3,3,3], dtype=bool, order="F")
+    with pytest.raises(ValueError):
+        area = xs3d.cross_sectional_area(labels, [0,0,0], [0,0,1], [1,1,1])
+
+def test_cross_section_inputs():
+    labels = np.arange(9, dtype=np.uint8).reshape([3,3,1], order="F")
+
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,1])
+
+    labels = np.ones([3,3,1], dtype=bool, order="F")
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,0])
+
+    labels = np.ones([3,3,1], dtype=bool, order="F")
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,1], [-1,1,1])
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,1], [1,-1,1])
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,1], [1,1,-1])
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,1], [-1,-1,-1])
+
+    labels = np.ones([3,3,3,3], dtype=bool, order="F")
+    with pytest.raises(ValueError):
+        area = xs3d.cross_section(labels, [0,0,0], [0,0,1], [1,1,1])
 
 
