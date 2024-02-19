@@ -365,3 +365,23 @@ def test_cross_section_inputs():
         area = xs3d.cross_section(labels, [0,0,0], [0,0,1], [1,1,1])
 
 
+def test_2d():
+    labels = np.ones([3,3], dtype=bool)
+    area = xs3d.cross_sectional_area(labels, [1,1], [0,1])
+    assert area == 3
+
+    area = xs3d.cross_sectional_area(labels, [1,1], [0,1], [3,3])
+    assert area == 9
+
+    area = xs3d.cross_sectional_area(labels, [1,1], [1,0], [1,1])
+    assert area == 3
+
+    area = xs3d.cross_sectional_area(labels, [1,1], [1,0], [5,5])
+    assert area == 15
+
+    area = xs3d.cross_sectional_area(labels, [0,0], [-1,1], [1,1])
+    assert np.isclose(area, 3 * np.sqrt(2))
+
+
+
+
