@@ -713,20 +713,20 @@ std::tuple<Vec3, Vec3> create_orthonormal_basis(const Vec3& normal) {
 		std::swap(basis1, basis2);
 	}
 
-	Vec3 positive_direction = Vec3(1,1,1);
+	// Vec3 positive_direction = Vec3(1,1,1);
 
-	Vec3 zone = positive_direction;
-	if (normal.dot(positive_direction) < 0) {
-		zone = -positive_direction;
-	}
+	// Vec3 zone = positive_direction;
+	// if (normal.dot(positive_direction) < 0) {
+	// 	zone = -positive_direction;
+	// }
 
-	if (basis1.dot(zone) < 0) {
-		basis1 = -basis1;
-	}
+	// if (basis1.dot(zone) < 0) {
+	// 	basis1 = -basis1;
+	// }
 
-	if (basis2.dot(zone) < 0) {
-		basis2 = -basis2;
-	}
+	// if (basis2.dot(zone) < 0) {
+	// 	basis2 = -basis2;
+	// }
 
 	return std::tuple(basis1, basis2);
 }
