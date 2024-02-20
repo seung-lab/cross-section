@@ -702,9 +702,7 @@ std::tuple<Vec3, Vec3> create_orthonormal_basis(const Vec3& normal) {
 
 	// try to sort and reflect the bases to approximate
 	// a standard basis. First, make basis1 more like the
-	// earlier letter of XY, XZ, or YZ and if its
-	// pointed into the negatives, reflect it into
-	// the positive direction.
+	// earlier letter of XY, XZ, or YZ
 
 	int argmax1 = basis1.abs().argmax();
 	int argmax2 = basis2.abs().argmax();
@@ -712,21 +710,6 @@ std::tuple<Vec3, Vec3> create_orthonormal_basis(const Vec3& normal) {
 	if (argmax2 < argmax1) {
 		std::swap(basis1, basis2);
 	}
-
-	// Vec3 positive_direction = Vec3(1,1,1);
-
-	// Vec3 zone = positive_direction;
-	// if (normal.dot(positive_direction) < 0) {
-	// 	zone = -positive_direction;
-	// }
-
-	// if (basis1.dot(zone) < 0) {
-	// 	basis1 = -basis1;
-	// }
-
-	// if (basis2.dot(zone) < 0) {
-	// 	basis2 = -basis2;
-	// }
 
 	return std::tuple(basis1, basis2);
 }
