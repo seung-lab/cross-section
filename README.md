@@ -50,7 +50,7 @@ image = xs3d.cross_section(
 # Get a slice of a 3d image in any orientation.
 # Note: result may be reflected or transposed
 # compared with what you might expect.
-image2d = xs3d.slice(labels, vertex, normal)
+image2d = xs3d.slice(labels, vertex, normal, anisotropy)
 ```
 
 When using skeletons (one dimensional stick figure representations) to create electrophysiological compartment simulations of neurons, some additional information is required for accuracy. The caliber of the neurite changes over the length of the cell.
