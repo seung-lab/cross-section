@@ -82,9 +82,19 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
+	float wx = anisotropy.at(0);
+	float wy = anisotropy.at(1);
+	float wz = anisotropy.at(2);
+
+	float minval = std::min(std::min(wx,wy), wz);
+	wx /= minval; wy /= minval; wz /= minval;
+	float maxval = std::max(std::max(std::abs(wx), std::abs(wy)), std::abs(wz));
+
+	const uint64_t distortion = static_cast<uint64_t>(ceil(maxval));
+
 	// rational approximation of sqrt(3) is 97/56
 	// result is more likely to be same across compilers
-	uint64_t psx = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+	uint64_t psx = distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
 	uint64_t pvoxels = psx * psx;
 
 	py::array arr; 
