@@ -61,6 +61,9 @@ public:
 		y *= other.y;
 		z *= other.z;
 	}
+	Vec3 operator/(const Vec3& other) const {
+		return Vec3(x/other.x, y/other.y, z/other.z);
+	}
 	Vec3 operator/(const float divisor) const {
 		return Vec3(x/divisor, y/divisor, z/divisor);
 	}
@@ -735,11 +738,18 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
+	const float wx, const float wy, const float wz,
 	LABEL* out = NULL
 ) {
+
+	Vec3 anisotropy(wx, wy, wz);
+	anisotropy /= anisotropy.min();
+	anisotropy = Vec3(1,1,1) / anisotropy;
+
+
 	// maximum possible size of plane
 	// rational approximation of sqrt(3) is 97/56
-	const uint64_t psx = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+	const uint64_t psx = (2 * 97 * std::max(std::max(sx,sy), sz) / 56) + 1;
 	const uint64_t psy = psx;
 
 	Bbox2d bbx;
@@ -765,8 +775,8 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	normal /= normal.norm();
 
 	auto bases = create_orthonormal_basis(normal);
-	Vec3 basis1 = std::get<0>(bases);
-	Vec3 basis2 = std::get<1>(bases);
+	Vec3 basis1 = std::get<0>(bases) * anisotropy;
+	Vec3 basis2 = std::get<1>(bases) * anisotropy;
 
 	uint64_t plane_pos_x = psx / 2;
 	uint64_t plane_pos_y = psy / 2;

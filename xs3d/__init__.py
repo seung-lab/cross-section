@@ -122,6 +122,7 @@ def slice(
   labels:np.ndarray,
   pos:Sequence[int],
   normal:Sequence[float],
+  anisotropy:Optional[Sequence[float]] = None,
 ) -> np.ndarray:
   """
   Compute which voxels are intercepted by a section plane
@@ -140,8 +141,12 @@ def slice(
 
   Returns: ndarray
   """
+  if anisotropy is None:
+    anisotropy = [ 1.0 ] * labels.ndim
+
   pos = np.array(pos, dtype=np.float32)
   normal = np.array(normal, dtype=np.float32)
+  anisotropy = np.array(anisotropy, dtype=np.float32)
 
   if np.all(normal == 0):
     raise ValueError("normal vector must not be a null vector (all zeros).")
@@ -151,7 +156,7 @@ def slice(
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
 
-  return fastxs3d.projection(labels, pos, normal)
+  return fastxs3d.projection(labels, pos, normal, anisotropy)
 
 
 
