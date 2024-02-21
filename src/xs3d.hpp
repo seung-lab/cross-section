@@ -244,6 +244,17 @@ void check_intersections(
 ) {
 	pts.clear();
 
+	Vec3 minpt(x,y,z);
+
+	constexpr float epsilon = 2e-5;
+
+	float dist_to_plane = std::abs((minpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > sqrt(3) / 2 + epsilon) { 
+		return;
+	}
+
 	const Vec3 c[8] = {
 		Vec3(0, 0, 0), // 0
 		Vec3(0, 0, 1), // 1 
@@ -269,7 +280,6 @@ void check_intersections(
 		c[0], c[3], c[5], c[6]
 	};
 
-	Vec3 minpt(x,y,z);
 	minpt += -0.5;
 
 	Vec3 pos2 = pos - minpt;
@@ -294,7 +304,6 @@ void check_intersections(
 		? 4
 		: 6;
 
-	constexpr float epsilon = 2e-5;
 	constexpr float bound = 0.5 + epsilon;
 
 	Vec3 corner;
