@@ -53,6 +53,14 @@ image = xs3d.cross_section(
 image2d = xs3d.slice(labels, vertex, normal, anisotropy)
 ```
 
+# Installation
+
+```
+pip install xs3d
+```
+
+# Cross Section Calculation
+
 When using skeletons (one dimensional stick figure representations) to create electrophysiological compartment simulations of neurons, some additional information is required for accuracy. The caliber of the neurite changes over the length of the cell.
 
 Previously, the radius from the current skeleton vertex to the nearest background voxel was used, but this was often an underestimate as it is sensitive to noise and divots in a shape.
