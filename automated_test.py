@@ -306,7 +306,7 @@ def test_cross_section():
 
 def test_slice():
     labels = np.arange(9, dtype=np.uint8).reshape([3,3,1], order="F")
-    slc = xs3d.slice(labels, [0,0,0], [0,0,1])
+    slc = xs3d.slice(labels, [0,0,0], [0,0,1], standardize_basis=True)
     assert np.all(slc == labels[:,:,0])
 
     with pytest.raises(ValueError):

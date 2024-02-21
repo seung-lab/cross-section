@@ -72,7 +72,8 @@ auto projection(
 	const py::array &labels,
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
-	const py::array_t<float> &anisotropy
+	const py::array_t<float> &anisotropy,
+	const bool standardize_basis
 ) {
 	const uint64_t sx = labels.shape()[0];
 	const uint64_t sy = labels.ndim() < 2
@@ -111,6 +112,7 @@ auto projection(
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			standardize_basis,
 			out
 		);
 

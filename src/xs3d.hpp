@@ -690,7 +690,9 @@ float* cross_section(
 	return plane_visualization;
 }
 
-std::tuple<Vec3, Vec3> create_orthonormal_basis(const Vec3& normal) {
+std::tuple<Vec3, Vec3> create_orthonormal_basis(
+	const Vec3& normal, const bool positive_basis
+) {
 	Vec3 basis1 = normal.cross(jhat);
 	if (basis1.is_null()) {
 		basis1 = normal.cross(ihat);
@@ -702,13 +704,32 @@ std::tuple<Vec3, Vec3> create_orthonormal_basis(const Vec3& normal) {
 
 	// try to sort and reflect the bases to approximate
 	// a standard basis. First, make basis1 more like the
-	// earlier letter of XY, XZ, or YZ
+	// earlier letter of XY, XZ, or YZ and if its
+	// pointed into the negatives, reflect it into
+	// the positive direction.
 
 	int argmax1 = basis1.abs().argmax();
 	int argmax2 = basis2.abs().argmax();
 
 	if (argmax2 < argmax1) {
 		std::swap(basis1, basis2);
+	}
+
+	Vec3 positive_direction = Vec3(1,1,1);
+
+	if (positive_basis) {
+		Vec3 zone = positive_direction;
+		if (normal.dot(positive_direction) < 0) {
+			zone = -positive_direction;
+		}
+
+		if (basis1.dot(zone) < 0) {
+			basis1 = -basis1;
+		}
+
+		if (basis2.dot(zone) < 0) {
+			basis2 = -basis2;
+		}
 	}
 
 	return std::tuple(basis1, basis2);
@@ -722,6 +743,7 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
 	const float wx, const float wy, const float wz,
+	const bool positive_basis,
 	LABEL* out = NULL
 ) {
 
@@ -759,7 +781,7 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	auto bases = create_orthonormal_basis(normal);
+	auto bases = create_orthonormal_basis(normal, positive_basis);
 	Vec3 basis1 = std::get<0>(bases) * anisotropy;
 	Vec3 basis2 = std::get<1>(bases) * anisotropy;
 

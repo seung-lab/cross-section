@@ -123,6 +123,7 @@ def slice(
   pos:Sequence[int],
   normal:Sequence[float],
   anisotropy:Optional[Sequence[float]] = None,
+  standardize_basis:bool = True,
 ) -> np.ndarray:
   """
   Compute which voxels are intercepted by a section plane
@@ -138,6 +139,20 @@ def slice(
     e.g. [5,10,2]
   normal: a vector normal to the section plane, does not
     need to be a unit vector. e.g. [sqrt(2)/2. sqrt(2)/2, 0]
+  anisotropy: resolution of the x, y, and z axis
+    e.g. [4,4,40] for an electron microscope image with 
+    4nm XY resolution with a 40nm cutting plane in 
+    serial sectioning.
+  standardize_basis: Tries (harder) to make the basis
+    vectors closer to a standard basis and comport with
+    human expectations (i.e. basis vectors point to the 
+    right and up). However, this can cause discontinuities
+    during smooth rotations.
+
+    As of this writing, this feature reflects a basis vector
+    if it is pointed > 90deg in opposition to the positive direction
+    <1,1,1> or <-1,-1,-1> if the normal vector is pointed more in that
+    direction.
 
   Returns: ndarray
   """
@@ -156,7 +171,7 @@ def slice(
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
 
-  return fastxs3d.projection(labels, pos, normal, anisotropy)
+  return fastxs3d.projection(labels, pos, normal, anisotropy, standardize_basis)
 
 
 
