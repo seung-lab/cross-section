@@ -277,6 +277,13 @@ void check_intersections(
 		khat.dot(normal)
 	};
 
+	float inv_projections[3];
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
 	const Vec3 pipe_points[4] = {
 		c[0], c[3], c[5], c[6]
 	};
@@ -329,7 +336,7 @@ void check_intersections(
 			continue;
 		}
 
-		float t = proj / proj2;
+		float t = proj * inv_projections[i >> 2];
 		if (std::abs(t) > 1 + epsilon) {
 			continue;
 		}
