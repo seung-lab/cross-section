@@ -150,7 +150,7 @@ float area_of_triangle(
 	Vec3 v2 = pts[2] - pts[0];
 	v2 *= anisotropy;
 	Vec3 v3 = v1.cross(v2);
-	return v3.norm() / 2.0;
+	return v3.norm() * 0.5;
 }
 
 // area of a quad is ||v1 x v2||
@@ -234,7 +234,7 @@ float area_of_poly(
 	}
 	area += spokes[0].cross(spokes[spokes.size() - 1]).norm();
 
-	return area / 2.0;
+	return area * 0.5;
 }
 
 void check_intersections(
