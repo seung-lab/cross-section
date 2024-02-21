@@ -237,10 +237,31 @@ float area_of_poly(
 	return area * 0.5;
 }
 
+const Vec3 c[8] = {
+	Vec3(0, 0, 0), // 0
+	Vec3(0, 0, 1), // 1 
+	Vec3(0, 1, 0), // 2 
+	Vec3(0, 1, 1), // 3
+	Vec3(1, 0, 0), // 4
+	Vec3(1, 0, 1), // 5
+	Vec3(1, 1, 0), // 6
+	Vec3(1, 1, 1) // 7
+};
+
+const Vec3 pipes[3] = {
+	ihat, jhat, khat
+};
+
+const Vec3 pipe_points[4] = {
+	c[0], c[3], c[5], c[6]
+};
+
 void check_intersections(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
-	const Vec3& pos, const Vec3& normal
+	const Vec3& pos, const Vec3& normal, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
 ) {
 	pts.clear();
 
@@ -255,38 +276,6 @@ void check_intersections(
 	if (dist_to_plane > max_dist_to_plane) { 
 		return;
 	}
-
-	const Vec3 c[8] = {
-		Vec3(0, 0, 0), // 0
-		Vec3(0, 0, 1), // 1 
-		Vec3(0, 1, 0), // 2 
-		Vec3(0, 1, 1), // 3
-		Vec3(1, 0, 0), // 4
-		Vec3(1, 0, 1), // 5
-		Vec3(1, 1, 0), // 6
-		Vec3(1, 1, 1) // 7
-	};
-
-	const Vec3 pipes[3] = {
-		ihat, jhat, khat
-	};
-
-	const float projections[3] = {
-		ihat.dot(normal),
-		jhat.dot(normal),
-		khat.dot(normal)
-	};
-
-	float inv_projections[3];
-	for (int i = 0; i < 3; i++) {
-		inv_projections[i] = (projections[i] == 0)
-			? 0
-			: 1.0 / projections[i];
-	}
-
-	const Vec3 pipe_points[4] = {
-		c[0], c[3], c[5], c[6]
-	};
 
 	minpt += -0.5;
 
@@ -376,7 +365,9 @@ float calc_area_at_point(
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
 	const Vec3& normal, const Vec3& anisotropy,
-	std::vector<Vec3>& pts,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections,
 	float* plane_visualization
 ) {
 	float subtotal = 0.0;
@@ -426,7 +417,8 @@ float calc_area_at_point(
 						static_cast<uint64_t>(delta.x), 
 						static_cast<uint64_t>(delta.y), 
 						static_cast<uint64_t>(delta.z),
-						pos, normal
+						pos, normal, 
+						projections, inv_projections
 					);
 
 					const auto size = pts.size();
@@ -505,6 +497,19 @@ float cross_sectional_area_helper(
 
 	std::vector<Vec3> pts;
 	pts.reserve(6);
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
 
 	while (!stack.empty()) {
 		ploc = stack.top();
@@ -586,7 +591,8 @@ float cross_sectional_area_helper(
 			binimg, ccl,
 			sx, sy, sz,
 			cur, pos, normal, anisotropy,
-			pts, plane_visualization
+			pts, projections, inv_projections,
+			plane_visualization
 		);
 	}
 
