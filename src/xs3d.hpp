@@ -230,11 +230,11 @@ float area_of_poly(
 
 	float area = 0.0;
 	for (uint64_t i = 0; i < spokes.size() - 1; i++) {
-		area += spokes[i].cross(spokes[i+1]).norm() / 2.0;
+		area += spokes[i].cross(spokes[i+1]).norm();
 	}
-	area += spokes[0].cross(spokes[spokes.size() - 1]).norm() / 2.0;
+	area += spokes[0].cross(spokes[spokes.size() - 1]).norm();
 
-	return area;
+	return area / 2.0;
 }
 
 void check_intersections(
