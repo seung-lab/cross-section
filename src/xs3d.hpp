@@ -247,11 +247,12 @@ void check_intersections(
 	Vec3 minpt(x,y,z);
 
 	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 / 2 + epsilon;
 
 	float dist_to_plane = std::abs((minpt-pos).dot(normal));
 	// if the distance to the plane is greater than sqrt(3)/2
 	// then the plane is not intersecting at all.
-	if (dist_to_plane > sqrt(3) / 2 + epsilon) { 
+	if (dist_to_plane > max_dist_to_plane) { 
 		return;
 	}
 
