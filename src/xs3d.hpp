@@ -816,63 +816,32 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	bbx.y_min = plane_pos_y;
 	bbx.y_max = plane_pos_y;
 
-	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+	for (float y = 0; y < psy; y++) {
+		for (float x = 0; x < psx; x++) {
 
-	std::stack<uint64_t> stack;
-	stack.push(ploc);
+			float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+			float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
 
-	while (!stack.empty()) {
-		ploc = stack.top();
-		stack.pop();
+			Vec3 cur = pos + basis1 * dx + basis2 * dy;			
 
-		if (visited[ploc]) {
-			continue;
-		}
+			if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+				continue;
+			}
+			else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+				continue;
+			}
 
-		visited[ploc] = true;
+			bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
+			bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
+			bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
+			bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
 
-		uint64_t y = ploc / psx;
-		uint64_t x = ploc - y * psx;
-
-		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
-		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
-
-		Vec3 cur = pos + basis1 * dx + basis2 * dy;
-
-		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
-			continue;
-		}
-		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
-			continue;
-		}
-
-		bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
-		bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
-		bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
-		bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
-
-		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
-			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
-		);
-
-		out[ploc] = labels[loc];
-
-		uint64_t up = ploc - psx; 
-		uint64_t down = ploc + psx;
-		uint64_t left = ploc - 1;
-		uint64_t right = ploc + 1;
-
-		if (x > 0 && !visited[left]) {
-			stack.push(left);
-		}
-		if (x < psx - 1 && !visited[right]) {
-			stack.push(right);
-		}
-		if (y > 0 && !visited[up]) {
-			stack.push(up);
-		}
-		if (y < psy - 1 && !visited[down]) {
-			stack.push(down);
+			uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+			);
+			uint64_t ploc = x + psx * y;
+			
+			out[ploc] = labels[loc];
 		}
 	}
 
