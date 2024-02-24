@@ -83,20 +83,25 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
-	float wx = anisotropy.at(0);
-	float wy = anisotropy.at(1);
-	float wz = anisotropy.at(2);
+	xs3d::Vec3 aniso(anisotropy.at(0), anisotropy.at(1), anisotropy.at(2));
+	xs3d::Vec3 pos(point.at(0), point.at(1), point.at(2));
+	xs3d::Vec3 norm(normal.at(0), normal.at(1), normal.at(2));
+	norm /= norm.norm();
 
-	float minval = std::min(std::min(wx,wy), wz);
-	wx /= minval; wy /= minval; wz /= minval;
-	float maxval = std::max(std::max(std::abs(wx), std::abs(wy)), std::abs(wz));
+	std::tuple<Vec3, Vec3> bases = xs3d::create_orthonormal_basis(norm, aniso, standardize_basis);
+	xs3d::Bbox2d plane_bbx = xs3d::compute_slice_plane(
+		pos, 
+		std::get<0>(bases), std::get<1>(bases),
+		sx, sy, sz
+	);
 
-	const uint64_t distortion = static_cast<uint64_t>(ceil(maxval));
+	const int64_t psx = plane_bbx.sx();
+	const int64_t psy = plane_bbx.sy();
+	const int64_t pvoxels = psx * psy;
 
-	// rational approximation of sqrt(3) is 97/56
-	// result is more likely to be same across compilers
-	uint64_t psx = distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
-	uint64_t pvoxels = psx * psx;
+	plane_bbx.print();
+
+	printf("fastxs3d.cpp psx %d psy %d\n", psx, psy);
 
 	py::array arr; 
 
@@ -116,24 +121,24 @@ auto projection(
 			out
 		);
 
-		xs3d::Bbox2d bbox = std::get<1>(tup);
-		bbox.x_max++;
-		bbox.y_max++;
+		// xs3d::Bbox2d bbox = std::get<1>(tup);
+		// bbox.x_max++;
+		// bbox.y_max++;
 
-		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
-	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
+		// auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
+	    // auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
 
-	    int64_t csx = bbox.sx();
+	    // int64_t csx = bbox.sx();
 
-	    for (int64_t y = bbox.y_min; y < bbox.y_max; y++) {
-	        for (int64_t x = bbox.x_min; x < bbox.x_max; x++) {
-	            cutout_ptr[
-	            	(x - bbox.x_min) + csx * (y - bbox.y_min)
-	            ] = out[x + psx * y];
-	        }
-	    }
+	    // for (int64_t y = bbox.y_min; y < bbox.y_max; y++) {
+	    //     for (int64_t x = bbox.x_min; x < bbox.x_max; x++) {
+	    //         cutout_ptr[
+	    //         	(x - bbox.x_min) + csx * (y - bbox.y_min)
+	    //         ] = out[x + psx * y];
+	    //     }
+	    // }
 	    
-		return cutout.view(py::str(labels.dtype()));
+		return arr.view(py::str(labels.dtype()));
 	};
 
 	int data_width = labels.dtype().itemsize();

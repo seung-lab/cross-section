@@ -10,10 +10,8 @@
 #include <vector>
 #include <stdexcept>
 
-namespace {
 
-static uint8_t _dummy_contact = false;
-
+namespace xs3d {
 class Vec3 {
 public:
 	float x, y, z;
@@ -136,6 +134,35 @@ public:
 		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
 	}
 };
+
+struct Bbox2d {
+	int64_t x_min, x_max;
+	int64_t y_min, y_max;
+	Bbox2d() : x_min(0), x_max(0), y_min(0), y_max(0) {};
+	Bbox2d(int64_t x_min, int64_t x_max, int64_t y_min, int64_t y_max) 
+		: x_min(x_min), x_max(x_max), y_min(y_min), y_max(y_max) {};
+
+	int64_t sx() const {
+		return x_max - x_min;
+	}
+	int64_t sy() const {
+		return y_max - y_min;
+	}
+	int64_t pixels() const {
+		return sx() * sy();
+	}
+	void print() const {
+		printf("Bbox2d(%lld, %lld, %lld, %lld)\n", x_min, x_max, y_min, y_max);
+	}
+};
+
+};
+
+namespace {
+
+using namespace xs3d;
+
+static uint8_t _dummy_contact = false;
 
 const Vec3 ihat = Vec3(1,0,0);
 const Vec3 jhat = Vec3(0,1,0);
@@ -603,27 +630,6 @@ float cross_sectional_area_helper(
 
 namespace xs3d {
 
-struct Bbox2d {
-	int64_t x_min, x_max;
-	int64_t y_min, y_max;
-	Bbox2d() : x_min(0), x_max(0), y_min(0), y_max(0) {};
-	Bbox2d(int64_t x_min, int64_t x_max, int64_t y_min, int64_t y_max) 
-		: x_min(x_min), x_max(x_max), y_min(y_min), y_max(y_max) {};
-
-	int64_t sx() const {
-		return x_max - x_min;
-	}
-	int64_t sy() const {
-		return y_max - y_min;
-	}
-	int64_t pixels() const {
-		return sx() * sy();
-	}
-	void print() const {
-		printf("Bbox2d(%llu, %llu, %llu, %llu)\n", x_min, x_max, y_min, y_max);
-	}
-};
-
 float cross_sectional_area(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -714,8 +720,13 @@ float* cross_section(
 }
 
 std::tuple<Vec3, Vec3> create_orthonormal_basis(
-	const Vec3& normal, const bool positive_basis
+	const Vec3& normal, 
+	const Vec3& anisotropy, 
+	const bool positive_basis
 ) {
+	Vec3 distortion = anisotropy / anisotropy.min();
+	distortion = Vec3(1,1,1) / distortion;
+
 	Vec3 basis1 = normal.cross(jhat);
 	if (basis1.is_null()) {
 		basis1 = normal.cross(ihat);
@@ -755,7 +766,46 @@ std::tuple<Vec3, Vec3> create_orthonormal_basis(
 		}
 	}
 
-	return std::tuple(basis1, basis2);
+	return std::tuple(basis1 * distortion, basis2 * distortion);
+}
+
+Bbox2d compute_slice_plane(
+	const Vec3& pos, 
+	const Vec3& basis1, const Vec3& basis2,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz
+) {
+
+	auto minfn = [&](const Vec3& basis) {
+		float dxx = -pos.x / basis.x;
+		float dxy = -pos.y / basis.y;
+		float dxz = -pos.z / basis.z;
+
+		dxx = std::isinf(dxx) ? INFINITY : dxx;
+		dxy = std::isinf(dxy) ? INFINITY : dxy;
+		dxz = std::isinf(dxz) ? INFINITY : dxz;
+
+		return floor(std::min(std::min(dxx, dxy), dxz));
+	};
+
+	auto maxfn = [&](const Vec3& basis) {
+		float dyx = (sx-pos.x) / basis.x;
+		float dyy = (sy-pos.y) / basis.y;
+		float dyz = (sz-pos.z) / basis.z;
+
+		dyx = std::isinf(dyx)? -INFINITY : dyx;
+		dyy = std::isinf(dyy)? -INFINITY : dyy;
+		dyz = std::isinf(dyz)? -INFINITY : dyz;
+
+		return ceil(std::max(std::max(dyx, dyy), dyz));
+	};
+
+	float dx_min = minfn(basis1);
+	float dx_max = maxfn(basis1);
+
+	float dy_min = minfn(basis2);
+	float dy_max = maxfn(basis2);
+
+	return Bbox2d(dx_min, dx_max, dy_min, dy_max);
 }
 
 template <typename LABEL>
@@ -769,22 +819,22 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const bool positive_basis,
 	LABEL* out = NULL
 ) {
+	const Vec3 anisotropy(wx, wy, wz);
+	const Vec3 pos(px, py, pz);
 
-	Vec3 anisotropy(wx, wy, wz);
-	anisotropy /= anisotropy.min();
-	const uint64_t distortion = static_cast<uint64_t>(ceil(
-		anisotropy.abs().max()
-	));
-	anisotropy = Vec3(1,1,1) / anisotropy;
-
-	// maximum possible size of plane
-	// rational approximation of sqrt(3) is 97/56
-	const uint64_t psx = (distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56) + 1;
-	const uint64_t psy = psx;
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
 
 	Bbox2d bbx;
 
-	std::vector<bool> visited(psx * psy);
+	auto bases = create_orthonormal_basis(normal, anisotropy, positive_basis);
+	Vec3 basis1 = std::get<0>(bases);
+	Vec3 basis2 = std::get<1>(bases);
+
+	Bbox2d plane_bbx = compute_slice_plane(pos, basis1, basis2, sx, sy, sz);
+
+	const uint64_t psx = plane_bbx.sx();
+	const uint64_t psy = plane_bbx.sy();
 
 	if (out == NULL) {
 		out = new LABEL[psx * psy]();
@@ -800,30 +850,25 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		return std::tuple(out, bbx);
 	}
 
-	const Vec3 pos(px, py, pz);
-	Vec3 normal(nx, ny, nz);
-	normal /= normal.norm();
+	std::vector<bool> visited(psx * psy);
 
-	auto bases = create_orthonormal_basis(normal, positive_basis);
-	Vec3 basis1 = std::get<0>(bases) * anisotropy;
-	Vec3 basis2 = std::get<1>(bases) * anisotropy;
+	bbx.x_min = sx;
+	bbx.x_max = 0;
+	bbx.y_min = sy;
+	bbx.y_max = 0;
 
-	uint64_t plane_pos_x = psx / 2;
-	uint64_t plane_pos_y = psy / 2;
+	// plane_bbx.print();
+	// pos.print("pos");
 
-	bbx.x_min = plane_pos_x;
-	bbx.x_max = plane_pos_x;
-	bbx.y_min = plane_pos_y;
-	bbx.y_max = plane_pos_y;
+	for (int64_t y = 0; y < psy; y++) {
+		for (int64_t x = 0; x < psx; x++) {
 
-	for (float y = 0; y < psy; y++) {
-		for (float x = 0; x < psx; x++) {
+			float dx = static_cast<float>(x) + static_cast<float>(plane_bbx.x_min);
+			float dy = static_cast<float>(y) + static_cast<float>(plane_bbx.y_min);
 
-			float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
-			float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
-
-			Vec3 cur = pos + basis1 * dx + basis2 * dy;			
-
+			Vec3 cur = pos + basis1 * dx + basis2 * dy;	
+			// printf("%.1f %.1f\n", dx, dy);
+			// cur.print("cur");
 			if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 				continue;
 			}
@@ -831,10 +876,10 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 				continue;
 			}
 
-			bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
-			bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
-			bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
-			bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
+			bbx.x_min = std::min(bbx.x_min, x);
+			bbx.x_max = std::max(bbx.x_max, x);
+			bbx.y_min = std::min(bbx.y_min, y);
+			bbx.y_max = std::max(bbx.y_max, y);
 
 			uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
 				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
@@ -844,6 +889,8 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 			out[ploc] = labels[loc];
 		}
 	}
+
+	// bbx.print();
 
 	return std::tuple(out, bbx);
 }
