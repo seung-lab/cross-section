@@ -847,8 +847,6 @@ std::tuple<LABEL*, int64_t, Bbox2d> cross_section_projection(
 		return std::tuple(out, psx, bbx);
 	}
 
-	std::vector<bool> visited(psx * psy);
-
 	bbx.x_min = psx - 1;
 	bbx.x_max = 0;
 	bbx.y_min = psy - 1;
