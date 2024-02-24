@@ -799,11 +799,11 @@ Bbox2d compute_slice_plane(
 		return ceil(std::max(std::max(dyx, dyy), dyz));
 	};
 
-	float dx_min = minfn(basis1);
-	float dx_max = maxfn(basis1);
+	float dx_min = minfn(basis1) - 1;
+	float dx_max = maxfn(basis1) + 1;
 
-	float dy_min = minfn(basis2);
-	float dy_max = maxfn(basis2);
+	float dy_min = minfn(basis2) - 1;
+	float dy_max = maxfn(basis2) + 1;
 
 	return Bbox2d(dx_min, dx_max, dy_min, dy_max);
 }
@@ -849,13 +849,10 @@ std::tuple<LABEL*, int64_t, Bbox2d> cross_section_projection(
 
 	std::vector<bool> visited(psx * psy);
 
-	bbx.x_min = sx;
+	bbx.x_min = psx - 1;
 	bbx.x_max = 0;
-	bbx.y_min = sy;
+	bbx.y_min = psy - 1;
 	bbx.y_max = 0;
-
-	// plane_bbx.print();
-	// pos.print("pos");
 
 	for (int64_t y = 0; y < psy; y++) {
 		for (int64_t x = 0; x < psx; x++) {
@@ -864,8 +861,7 @@ std::tuple<LABEL*, int64_t, Bbox2d> cross_section_projection(
 			float dy = static_cast<float>(y) + static_cast<float>(plane_bbx.y_min);
 
 			Vec3 cur = pos + basis1 * dx + basis2 * dy;	
-			// printf("%.1f %.1f\n", dx, dy);
-			// cur.print("cur");
+
 			if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 				continue;
 			}
@@ -873,22 +869,21 @@ std::tuple<LABEL*, int64_t, Bbox2d> cross_section_projection(
 				continue;
 			}
 
+			uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+			);
+
 			bbx.x_min = std::min(bbx.x_min, x);
 			bbx.x_max = std::max(bbx.x_max, x);
 			bbx.y_min = std::min(bbx.y_min, y);
 			bbx.y_max = std::max(bbx.y_max, y);
 
-			uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
-				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
-			);
-			// printf("%d, %d\n", x,y);
 			uint64_t ploc = x + psx * y;
-			
 			out[ploc] = labels[loc];
 		}
 	}
 
-	// bbx.print();
+	bbx.print();
 
 	return std::tuple(out, psx, bbx);
 }
