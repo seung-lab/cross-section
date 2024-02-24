@@ -776,9 +776,9 @@ Bbox2d compute_slice_plane(
 ) {
 
 	auto minfn = [&](const Vec3& basis) {
-		float dxx = -pos.x / basis.x;
-		float dxy = -pos.y / basis.y;
-		float dxz = -pos.z / basis.z;
+		float dxx = -pos.x * sqrt(3) / basis.x;
+		float dxy = -pos.y * sqrt(3) / basis.y;
+		float dxz = -pos.z * sqrt(3) / basis.z;
 
 		dxx = std::isinf(dxx) ? INFINITY : dxx;
 		dxy = std::isinf(dxy) ? INFINITY : dxy;
@@ -788,9 +788,9 @@ Bbox2d compute_slice_plane(
 	};
 
 	auto maxfn = [&](const Vec3& basis) {
-		float dyx = (sx-pos.x) / basis.x;
-		float dyy = (sy-pos.y) / basis.y;
-		float dyz = (sz-pos.z) / basis.z;
+		float dyx = (sqrt(3) * sx-pos.x) / basis.x;
+		float dyy = (sqrt(3) * sy-pos.y) / basis.y;
+		float dyz = (sqrt(3) * sz-pos.z) / basis.z;
 
 		dyx = std::isinf(dyx)? -INFINITY : dyx;
 		dyy = std::isinf(dyy)? -INFINITY : dyy;
@@ -882,8 +882,6 @@ std::tuple<LABEL*, int64_t, Bbox2d> cross_section_projection(
 			out[ploc] = labels[loc];
 		}
 	}
-
-	bbx.print();
 
 	return std::tuple(out, psx, bbx);
 }
