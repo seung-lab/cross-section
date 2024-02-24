@@ -83,62 +83,39 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
-	xs3d::Vec3 aniso(anisotropy.at(0), anisotropy.at(1), anisotropy.at(2));
-	xs3d::Vec3 pos(point.at(0), point.at(1), point.at(2));
-	xs3d::Vec3 norm(normal.at(0), normal.at(1), normal.at(2));
-	norm /= norm.norm();
-
-	std::tuple<Vec3, Vec3> bases = xs3d::create_orthonormal_basis(norm, aniso, standardize_basis);
-	xs3d::Bbox2d plane_bbx = xs3d::compute_slice_plane(
-		pos, 
-		std::get<0>(bases), std::get<1>(bases),
-		sx, sy, sz
-	);
-
-	const int64_t psx = plane_bbx.sx();
-	const int64_t psy = plane_bbx.sy();
-	const int64_t pvoxels = psx * psy;
-
-	plane_bbx.print();
-
-	printf("fastxs3d.cpp psx %d psy %d\n", psx, psy);
-
-	py::array arr; 
-
 	auto projectionfn = [&](auto dtype) {
-		arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
-		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
 		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
-		std::fill(out, out + pvoxels, 0);
-
-		std::tuple<decltype(dtype)*, xs3d::Bbox2d> tup = xs3d::cross_section_projection<decltype(dtype)>(
+		auto tup = xs3d::cross_section_projection<decltype(dtype)>(
 			data,
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-			standardize_basis,
-			out
+			standardize_basis
 		);
 
-		// xs3d::Bbox2d bbox = std::get<1>(tup);
-		// bbox.x_max++;
-		// bbox.y_max++;
+		auto out = std::get<0>(tup);
+		uint64_t psx = std::get<1>(tup);
+		xs3d::Bbox2d bbox = std::get<2>(tup);
+		bbox.x_max++;
+		bbox.y_max++;
 
-		// auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
-	    // auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
+		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
+	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
 
-	    // int64_t csx = bbox.sx();
+	    int64_t csx = bbox.sx();
 
-	    // for (int64_t y = bbox.y_min; y < bbox.y_max; y++) {
-	    //     for (int64_t x = bbox.x_min; x < bbox.x_max; x++) {
-	    //         cutout_ptr[
-	    //         	(x - bbox.x_min) + csx * (y - bbox.y_min)
-	    //         ] = out[x + psx * y];
-	    //     }
-	    // }
+	    for (int64_t y = bbox.y_min; y < bbox.y_max; y++) {
+	        for (int64_t x = bbox.x_min; x < bbox.x_max; x++) {
+	            cutout_ptr[
+	            	(x - bbox.x_min) + csx * (y - bbox.y_min)
+	            ] = out[x + psx * y];
+	        }
+	    }
 	    
-		return arr.view(py::str(labels.dtype()));
+	    delete[] out;
+
+		return cutout.view(py::str(labels.dtype()));
 	};
 
 	int data_width = labels.dtype().itemsize();

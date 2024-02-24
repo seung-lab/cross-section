@@ -809,15 +809,14 @@ Bbox2d compute_slice_plane(
 }
 
 template <typename LABEL>
-std::tuple<LABEL*, Bbox2d> cross_section_projection(
+std::tuple<LABEL*, uint64_t, Bbox2d> cross_section_projection(
 	const LABEL* labels,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
 	const float wx, const float wy, const float wz,
-	const bool positive_basis,
-	LABEL* out = NULL
+	const bool positive_basis
 ) {
 	const Vec3 anisotropy(wx, wy, wz);
 	const Vec3 pos(px, py, pz);
@@ -836,18 +835,16 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const uint64_t psx = plane_bbx.sx();
 	const uint64_t psy = plane_bbx.sy();
 
-	if (out == NULL) {
-		out = new LABEL[psx * psy]();
-	}
+	LABEL* out = new LABEL[psx * psy]();
 
 	if (px < 0 || px >= sx) {
-		return std::tuple(out, bbx);
+		return std::tuple(out, psx, bbx);
 	}
 	else if (py < 0 || py >= sy) {
-		return std::tuple(out, bbx);
+		return std::tuple(out, psx, bbx);
 	}
 	else if (pz < 0 || pz >= sz) {
-		return std::tuple(out, bbx);
+		return std::tuple(out, psx, bbx);
 	}
 
 	std::vector<bool> visited(psx * psy);
@@ -884,6 +881,7 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 			uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
 				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
 			);
+			// printf("%d, %d\n", x,y);
 			uint64_t ploc = x + psx * y;
 			
 			out[ploc] = labels[loc];
@@ -892,7 +890,7 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 
 	// bbx.print();
 
-	return std::tuple(out, bbx);
+	return std::tuple(out, psx, bbx);
 }
 
 };
