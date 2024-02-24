@@ -809,7 +809,7 @@ Bbox2d compute_slice_plane(
 }
 
 template <typename LABEL>
-std::tuple<LABEL*, uint64_t, Bbox2d> cross_section_projection(
+std::tuple<LABEL*, int64_t, Bbox2d> cross_section_projection(
 	const LABEL* labels,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
@@ -832,8 +832,8 @@ std::tuple<LABEL*, uint64_t, Bbox2d> cross_section_projection(
 
 	Bbox2d plane_bbx = compute_slice_plane(pos, basis1, basis2, sx, sy, sz);
 
-	const uint64_t psx = plane_bbx.sx();
-	const uint64_t psy = plane_bbx.sy();
+	const int64_t psx = plane_bbx.sx();
+	const int64_t psy = plane_bbx.sy();
 
 	LABEL* out = new LABEL[psx * psy]();
 
