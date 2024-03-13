@@ -30,7 +30,7 @@ auto section(
     float* data = static_cast<float*>(arr.request().ptr);
     std::fill(data, data + voxels, 0.0f);
 
-	xs3d::cross_section(
+	std::tuple<float*, uint8_t> tup = xs3d::cross_section(
 		binimg.data(),
 		sx, sy, sz,
 		point.at(0), point.at(1), point.at(2),
@@ -39,7 +39,7 @@ auto section(
 		data
 	);
 
-	return arr;
+	return std::make_tuple(arr, std::get<1>(tup));
 }
 
 auto area(

@@ -665,7 +665,7 @@ float cross_sectional_area(
 	);
 }
 
-float* cross_section(
+std::tuple<float*, uint8_t> cross_section(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
@@ -678,14 +678,16 @@ float* cross_section(
 		plane_visualization = new float[sx * sy * sz]();
 	}
 
+	uint8_t contact = 0;
+
 	if (px < 0 || px >= sx) {
-		return plane_visualization;
+		return std::make_tuple(plane_visualization, contact);
 	}
 	else if (py < 0 || py >= sy) {
-		return plane_visualization;
+		return std::make_tuple(plane_visualization, contact);
 	}
 	else if (pz < 0 || pz >= sz) {
-		return plane_visualization;
+		return std::make_tuple(plane_visualization, contact);
 	}
 
 	uint64_t loc = static_cast<uint64_t>(px) + sx * (
@@ -693,7 +695,7 @@ float* cross_section(
 	);
 
 	if (!binimg[loc]) {
-		return plane_visualization;
+		return std::make_tuple(plane_visualization, contact);
 	}
 
 	const Vec3 pos(px, py, pz);
@@ -701,7 +703,6 @@ float* cross_section(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	uint8_t contact = 0;
 
 	cross_sectional_area_helper(
 		binimg, 
@@ -710,7 +711,7 @@ float* cross_section(
 		contact, plane_visualization
 	);
 
-	return plane_visualization;
+	return std::make_tuple(plane_visualization, contact);
 }
 
 std::tuple<Vec3, Vec3> create_orthonormal_basis(

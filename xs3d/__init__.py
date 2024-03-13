@@ -76,6 +76,7 @@ def cross_section(
   pos:Sequence[int],
   normal:Sequence[float],
   anisotropy:Optional[Sequence[float]] = None,
+  return_contact:bool = False,
 ) -> np.ndarray:
   """
   Compute which voxels are intercepted by a section plane
@@ -91,6 +92,17 @@ def cross_section(
     e.g. [4,4,40] for an electron microscope image with 
     4nm XY resolution with a 40nm cutting plane in 
     serial sectioning.
+  return_contact: if true, return a tuple of (area, contact)
+    where area is the usual output and contact is non-zero if
+    the section plane has contacted the edge of the image
+    indicating the area may be an underestimate if you are
+    working with a cutout of a larger image.
+
+    Contact is an 8-bit bitfield that represents which image faces
+    have been touched. The bits are organized as follows.
+
+    0: 0 X     2: 0 Y     4: 0 Z      6: Unused
+    1: Max X   3: Max Y   5: Max Z    7: Unused
 
   Returns: float32 volume where each voxel's value is its
     contribution to the cross sectional area
@@ -113,10 +125,15 @@ def cross_section(
 
   binimg = np.asfortranarray(binimg)
 
-  if binimg.ndim == 3:
-    return fastxs3d.section(binimg, pos, normal, anisotropy)
-  else:
+  if binimg.ndim != 3:
     raise ValueError("dimensions not supported")
+  
+  section, contact = fastxs3d.section(binimg, pos, normal, anisotropy)
+
+  if return_contact:
+    return (section, contact)
+
+  return section
 
 def slice(
   labels:np.ndarray,
