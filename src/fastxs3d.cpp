@@ -26,7 +26,7 @@ auto section(
 
 	const uint64_t voxels = sx * sy * sz;
 
-	py::array_t arr = py::array_t<float, py::array::f_style>(voxels);
+	py::array_t arr = py::array_t<float, py::array::f_style>({ sx, sy, sz });
     float* data = static_cast<float*>(arr.request().ptr);
     std::fill(data, data + voxels, 0.0f);
 
@@ -39,7 +39,7 @@ auto section(
 		data
 	);
 
-	return arr.reshape({ sx, sy, sz });
+	return arr;
 }
 
 auto area(
