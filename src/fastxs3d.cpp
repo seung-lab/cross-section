@@ -83,40 +83,20 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
-	float wx = anisotropy.at(0);
-	float wy = anisotropy.at(1);
-	float wz = anisotropy.at(2);
-
-	float minval = std::min(std::min(wx,wy), wz);
-	wx /= minval; wy /= minval; wz /= minval;
-	float maxval = std::max(std::max(std::abs(wx), std::abs(wy)), std::abs(wz));
-
-	const uint64_t distortion = static_cast<uint64_t>(ceil(maxval));
-
-	// rational approximation of sqrt(3) is 97/56
-	// result is more likely to be same across compilers
-	uint64_t psx = distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
-	uint64_t pvoxels = psx * psx;
-
-	py::array arr; 
-
 	auto projectionfn = [&](auto dtype) {
-		arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
-		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
 		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
-		std::fill(out, out + pvoxels, 0);
-
-		std::tuple<decltype(dtype)*, xs3d::Bbox2d> tup = xs3d::cross_section_projection<decltype(dtype)>(
+		auto tup = xs3d::cross_section_projection<decltype(dtype)>(
 			data,
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-			standardize_basis,
-			out
+			standardize_basis
 		);
 
-		xs3d::Bbox2d bbox = std::get<1>(tup);
+		auto out = std::get<0>(tup);
+		uint64_t psx = std::get<1>(tup);
+		xs3d::Bbox2d bbox = std::get<2>(tup);
 		bbox.x_max++;
 		bbox.y_max++;
 
@@ -133,6 +113,8 @@ auto projection(
 	        }
 	    }
 	    
+	    delete[] out;
+
 		return cutout.view(py::str(labels.dtype()));
 	};
 
