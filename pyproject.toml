@@ -3,6 +3,6 @@ requires = [
 	"setuptools", 
 	"wheel", 
 	"connected-components-3d",
-	"oldest-supported-numpy",
+	"numpy",
 	"pybind11",
 ]
