@@ -10,9 +10,7 @@
 #include <vector>
 #include <stdexcept>
 
-namespace {
-
-static uint8_t _dummy_contact = false;
+namespace xs3d {
 
 class Vec3 {
 public:
@@ -136,6 +134,14 @@ public:
 		printf("%s %.3f, %.3f, %.3f\n",name.c_str(), x, y, z);
 	}
 };
+
+};
+
+namespace {
+
+using namespace xs3d;
+
+static uint8_t _dummy_contact = false;
 
 const Vec3 ihat = Vec3(1,0,0);
 const Vec3 jhat = Vec3(0,1,0);
@@ -763,11 +769,9 @@ template <typename LABEL>
 std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const LABEL* labels,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	
 	const float px, const float py, const float pz,
-	const float nx, const float ny, const float nz,
+	const Vec3& basis_1, const Vec3& basis_2,
 	const float wx, const float wy, const float wz,
-	const bool positive_basis,
 	LABEL* out = NULL
 ) {
 
@@ -802,12 +806,9 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	}
 
 	const Vec3 pos(px, py, pz);
-	Vec3 normal(nx, ny, nz);
-	normal /= normal.norm();
 
-	auto bases = create_orthonormal_basis(normal, positive_basis);
-	Vec3 basis1 = std::get<0>(bases) * anisotropy;
-	Vec3 basis2 = std::get<1>(bases) * anisotropy;
+	Vec3 basis1 = basis_1 / basis_1.norm() * anisotropy;
+	Vec3 basis2 = basis_2 / basis_2.norm() * anisotropy;
 
 	uint64_t plane_pos_x = psx / 2;
 	uint64_t plane_pos_y = psy / 2;
@@ -878,6 +879,37 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	}
 
 	return std::tuple(out, bbx);
+}
+
+template <typename LABEL>
+std::tuple<LABEL*, Bbox2d> cross_section_projection(
+	const LABEL* labels,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	const float wx, const float wy, const float wz,
+	const bool positive_basis,
+	LABEL* out = NULL
+) {
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	Vec3 anisotropy(wx, wy, wz);
+	anisotropy /= anisotropy.min();
+	anisotropy = Vec3(1,1,1) / anisotropy;
+
+	auto bases = create_orthonormal_basis(normal, positive_basis);
+	Vec3 basis1 = std::get<0>(bases) * anisotropy;
+	Vec3 basis2 = std::get<1>(bases) * anisotropy;
+
+	return cross_section_projection<LABEL>(
+		labels,
+		sx, sy, sz,
+		px, py, pz,
+		basis1, basis2,
+		wx, wy, wz,
+		out
+	);
 }
 
 };
