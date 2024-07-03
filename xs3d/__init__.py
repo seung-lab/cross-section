@@ -309,3 +309,130 @@ def _moving_average(a:np.ndarray, n:int, mode:str = "symmetric") -> np.ndarray:
   ret /= float(n)
   return ret
 
+def slice_path2(
+  labels:np.ndarray,
+  path:Sequence[Sequence[int]],
+  anisotropy:Optional[Sequence[float]] = None,
+  smoothing:int = 1,
+  threshold:float = 1e-3,
+) -> np.ndarray:
+  """
+  Compute which voxels are intercepted by a section plane
+  that perpendicular to the path and project them onto a plane.
+
+  NB: The orientation of this projection is not guaranteed. 
+  The axes can be reflected and transposed compared to what
+  you might expect.
+
+  labels: a binary 2d or 3d numpy image (e.g. a bool datatype)
+  path: a sequence of points in the image from which to extract the section
+    must be an integer (it's an index into the image).
+    e.g. [5,10,2]
+  anisotropy: resolution of the x, y, and z axis
+    e.g. [4,4,40] for an electron microscope image with 
+    4nm XY resolution with a 40nm cutting plane in 
+    serial sectioning.
+
+  smoothing: number of verticies in the path to smooth the tangent
+    vectors with.
+
+  Returns: ndarray
+  """
+  if anisotropy is None:
+    anisotropy = [ 1.0 ] * labels.ndim
+
+  path = np.array(path, dtype=np.float32)
+
+  if path.ndim != 2:
+    raise ValueError("pos must be a sequence of x,y,z points.")
+
+  if labels.ndim != 3:
+    raise ValueError(f"{labels.ndim} dimensions not supported")
+
+  anisotropy = np.array(anisotropy, dtype=np.float32)
+  labels = np.asfortranarray(labels)
+
+  # vectors aligned with the path
+  tangents = (path[1:] - path[:-1]).astype(np.float32)
+  tangents = np.concatenate([ tangents, [tangents[-1]] ])
+
+  # Running the filter in the forward and then backwards
+  # direction eliminates phase shift.
+  tangents = _moving_average(tangents, smoothing)
+  tangents = _moving_average(tangents[::-1], smoothing)[::-1]
+
+  basis1s = np.cross(tangents[1:], tangents[:-1]) #.astype(np.float32)
+  basis1s = np.concatenate([ basis1s, [basis1s[-1]] ])
+
+  if np.all(abs(basis1s[0]) < threshold):
+      for i in range(1, len(basis1s)):
+          # If the current element does not have all values less than 10^-8
+          if not np.all(abs(basis1s[i]) < threshold):
+              basis1s[0] = basis1s[i]
+              break
+
+  for i in range(1, len(basis1s)):
+    if np.all(abs(basis1s[0]) < threshold):
+      basis1s[i] = basis1s[i-1]
+
+  basis2s = np.cross(basis1s, tangents)
+
+  for i in range(len(basis1s)):
+    basis1s[i] /= np.linalg.norm(basis1s[i])
+    basis2s[i] /= np.linalg.norm(basis2s[i])
+
+  slices = []
+  from tqdm import tqdm
+  for pos, basis1, basis2 in tqdm(zip(path, basis1s, basis2s)):
+    slices.append(
+      fastxs3d.projection_with_frame(
+        labels, pos, 
+        basis1, basis2, 
+        anisotropy
+      )
+    )
+  return slices
+
+def slice_with_frame(
+  labels:np.ndarray,
+  pos:Sequence[int],
+  basis1:Sequence[float],
+  basis2:Sequence[float],
+  anisotropy:Optional[Sequence[float]] = None,
+) -> np.ndarray:
+  """
+  Compute which voxels are intercepted by a section plane
+  and project them onto a plane.
+
+  NB: The orientation of this projection is not guaranteed. 
+  The axes can be reflected and transposed compared to what
+  you might expect.
+
+  labels: a binary 2d or 3d numpy image (e.g. a bool datatype)
+
+  anisotropy: resolution of the x, y, and z axis
+    e.g. [4,4,40] for an electron microscope image with 
+    4nm XY resolution with a 40nm cutting plane in 
+    serial sectioning.
+
+  Returns: ndarray
+  """
+  if anisotropy is None:
+    anisotropy = [ 1.0 ] * labels.ndim
+
+  pos = np.array(pos, dtype=np.float32)
+  basis1 = np.array(basis1, dtype=np.float32)
+  basis2 = np.array(basis2, dtype=np.float32)
+  anisotropy = np.array(anisotropy, dtype=np.float32)
+
+  labels = np.asfortranarray(labels)
+
+  if labels.ndim != 3:
+    raise ValueError(f"{labels.ndim} dimensions not supported")
+
+  slice = fastxs3d.projection_with_frame(
+        labels, pos, 
+        basis1, basis2,
+        anisotropy
+      )
+  return slice
