@@ -229,6 +229,29 @@ def slice_path(
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
 
+  # def degrees(v1,v2):
+  #   cos = np.dot(v1, v2) / np.linalg.norm(v1) / np.linalg.norm(v2)
+  #   cos = np.clip(cos, -1, 1)
+  #   return np.arccos(cos) / np.pi / 2.0 * 360.0
+
+  def rotation_matrix_from_vectors(vec1, vec2):
+    """
+    Find the rotation matrix that aligns vec1 to vec2
+    :param vec1: A 3d "source" vector
+    :param vec2: A 3d "destination" vector
+    :return mat: A transformation matrix (3x3) which when applied to vec1, aligns it with vec2.
+    """
+    a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
+    v = np.cross(a, b)
+    c = np.dot(a, b)
+    s = np.linalg.norm(v)
+    if s == 0:
+      return np.eye(3)
+
+    kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    rotation_matrix = np.eye(3) + kmat + kmat @ kmat * ((1 - c) / (s ** 2))
+    return rotation_matrix
+
   anisotropy = np.array(anisotropy, dtype=np.float32)
   labels = np.asfortranarray(labels)
 
@@ -241,37 +264,18 @@ def slice_path(
   tangents = _moving_average(tangents, smoothing)
   tangents = _moving_average(tangents[::-1], smoothing)[::-1]
 
-  basis1s = (tangents[1:] - tangents[:-1]).astype(np.float32)
-  basis1s = np.concatenate([ basis1s, [basis1s[-1]] ])
+  # need to consider single tangent too
 
-  basis2s = []
+  basis1s = np.zeros([ len(tangents), 3 ], dtype=np.float32)
+  basis2s = np.zeros([ len(tangents), 3 ], dtype=np.float32)
 
-  basis1 = basis1s[0]
-  if np.all(basis1 == 0):
-    basis1 = np.cross(tangents[0], [1,0,0])
-    if np.all(basis1 == 0):
-      basis1 = np.cross(tangents[0], [0,1,0])
+  basis1s[0] = np.cross(tangents[0], tangents[1])
+  basis2s[0] = np.cross(basis1s[0] , tangents[0])
 
-  basis1s[0] = basis1
-
-  for i in range(1, len(basis1s)):
-    if np.all(basis1s[i] == 0):
-      basis1s[i] = basis1s[i-1]
-
-  basis2 = np.cross(tangents[0], basis1)
-  if np.all(basis2 == 0):
-    basis2 = np.cross(tangents[0], [1,0,0])
-    if np.all(basis2 == 0):
-      basis2 = np.cross(tangents[0], [0,1,0])
-
-  basis2s.append(basis2)
-
-  for tangent, delta in zip(tangents[1:], basis1s[1:]):
-    basis1 = delta
-    basis2 = np.cross(tangent, basis1)
-    if np.all(basis2 == 0):
-      basis2 = basis2s[-1]
-    basis2s.append(basis2)
+  for i in range(1, len(tangents)):
+    R = rotation_matrix_from_vectors(tangents[i-1], tangents[i])
+    basis1s[i] = np.matmul(R, basis1s[i-1].T)
+    basis2s[i] = np.matmul(R, basis2s[i-1].T)
 
   for i in range(len(basis1s)):
     basis1s[i] /= np.linalg.norm(basis1s[i])
