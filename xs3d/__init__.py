@@ -372,7 +372,7 @@ def slice_path2(
               break
 
   for i in range(1, len(basis1s)):
-    if np.all(abs(basis1s[0]) < threshold):
+    if np.all(abs(basis1s[i]) < threshold):
       basis1s[i] = basis1s[i-1]
 
   basis2s = np.cross(basis1s, tangents)
