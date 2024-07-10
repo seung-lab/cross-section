@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, Tuple
+from typing import Sequence, Optional, Tuple, Generator
 
 from .twod import cross_sectional_area_2d
 import fastxs3d
@@ -195,10 +195,15 @@ def slice_path(
   path:Sequence[Sequence[int]],
   anisotropy:Optional[Sequence[float]] = None,
   smoothing:int = 1,
-) -> np.ndarray:
+) -> Generator[np.ndarray, None, None]:
   """
   Compute which voxels are intercepted by a section plane
   and project them onto a plane.
+
+  Why is it a generator? Because paths can be artibrarily long
+  and this will avoid running out of memory (e.g. imagine a path
+  that passes through every voxel in the image, for a 512x512x512
+  uint64 volume, that could produce up to 550GB of image data).
 
   NB: The orientation of this projection is not guaranteed. 
   The axes can be reflected and transposed compared to what
@@ -212,11 +217,8 @@ def slice_path(
     e.g. [4,4,40] for an electron microscope image with 
     4nm XY resolution with a 40nm cutting plane in 
     serial sectioning.
-
   smoothing: number of verticies in the path to smooth the tangent
     vectors with.
-
-  Returns: ndarray
   """
   if anisotropy is None:
     anisotropy = [ 1.0 ] * labels.ndim
@@ -229,31 +231,17 @@ def slice_path(
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
 
-  # def degrees(v1,v2):
-  #   cos = np.dot(v1, v2) / np.linalg.norm(v1) / np.linalg.norm(v2)
-  #   cos = np.clip(cos, -1, 1)
-  #   return np.arccos(cos) / np.pi / 2.0 * 360.0
-
-  def rotation_matrix_from_vectors(vec1, vec2):
-    """
-    Find the rotation matrix that aligns vec1 to vec2
-    :param vec1: A 3d "source" vector
-    :param vec2: A 3d "destination" vector
-    :return mat: A transformation matrix (3x3) which when applied to vec1, aligns it with vec2.
-    """
-    a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
-    v = np.cross(a, b)
-    c = np.dot(a, b)
-    s = np.linalg.norm(v)
-    if s == 0:
-      return np.eye(3)
-
-    kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-    rotation_matrix = np.eye(3) + kmat + kmat @ kmat * ((1 - c) / (s ** 2))
-    return rotation_matrix
-
   anisotropy = np.array(anisotropy, dtype=np.float32)
   labels = np.asfortranarray(labels)
+
+  if len(path) == 1:
+    yield slice(
+      labels,
+      pos=path[0],
+      normal=[0,0,1],
+      anisotropy=anisotropy,
+    )
+    return
 
   # vectors aligned with the path
   tangents = (path[1:] - path[:-1]).astype(np.float32)
@@ -264,34 +252,36 @@ def slice_path(
   tangents = _moving_average(tangents, smoothing)
   tangents = _moving_average(tangents[::-1], smoothing)[::-1]
 
-  # need to consider single tangent too
-
   basis1s = np.zeros([ len(tangents), 3 ], dtype=np.float32)
   basis2s = np.zeros([ len(tangents), 3 ], dtype=np.float32)
 
-  basis1s[0] = np.cross(tangents[0], tangents[1])
-  basis2s[0] = np.cross(basis1s[0] , tangents[0])
+  if len(path) == 2:
+    basis1s[0] = np.cross(tangents[0], [0,1,0])
+    if np.isclose(np.linalg.norm(basis1s[0]), 0):
+      basis1s[0] = np.cross(tangents[0], [1,0,0])
+    basis2s[0] = np.cross(tangents[0], basis1s[0])
 
-  for i in range(1, len(tangents)):
-    R = rotation_matrix_from_vectors(tangents[i-1], tangents[i])
-    basis1s[i] = np.matmul(R, basis1s[i-1].T)
-    basis2s[i] = np.matmul(R, basis2s[i-1].T)
+    basis1s[1] = basis1s[0]
+    basis2s[1] = basis2s[0]
+  else:
+    basis1s[0] = np.cross(tangents[0], tangents[1])
+    basis2s[0] = np.cross(basis1s[0] , tangents[0])
+
+    for i in range(1, len(tangents)):
+      R = _rotation_matrix_from_vectors(tangents[i-1], tangents[i])
+      basis1s[i] = R @ basis1s[i-1].T
+      basis2s[i] = R @ basis2s[i-1].T
 
   for i in range(len(basis1s)):
     basis1s[i] /= np.linalg.norm(basis1s[i])
     basis2s[i] /= np.linalg.norm(basis2s[i])
 
-  slices = []
-  from tqdm import tqdm
-  for pos, basis1, basis2 in tqdm(zip(path, basis1s, basis2s)):
-    slices.append(
-      fastxs3d.projection_with_frame(
+  for pos, basis1, basis2 in zip(path, basis1s, basis2s):
+      yield fastxs3d.projection_with_frame(
         labels, pos, 
         basis1, basis2, 
         anisotropy
       )
-    )
-  return slices
 
 # From SO: https://stackoverflow.com/questions/14313510/how-to-calculate-rolling-moving-average-using-python-numpy-scipy
 def _moving_average(a:np.ndarray, n:int, mode:str = "symmetric") -> np.ndarray:
@@ -313,3 +303,25 @@ def _moving_average(a:np.ndarray, n:int, mode:str = "symmetric") -> np.ndarray:
   ret /= float(n)
   return ret
 
+def _rotation_matrix_from_vectors(vec1, vec2):
+  """
+  Find the rotation matrix that aligns vec1 to vec2
+  :param vec1: A 3d "source" vector
+  :param vec2: A 3d "destination" vector
+  :return mat: A transformation matrix (3x3) which when applied to vec1, aligns it with vec2.
+
+  Credit: help from chatgpt
+  """
+  a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
+  v = np.cross(a, b)
+  c = np.dot(a, b)
+  s = np.linalg.norm(v)
+  if s == 0:
+    return np.eye(3)
+
+  kmat = np.array([
+    [0, -v[2], v[1]], 
+    [v[2], 0, -v[0]], 
+    [-v[1], v[0], 0]
+  ])
+  return np.eye(3) + kmat + kmat @ kmat * ((1 - c) / (s * s))
