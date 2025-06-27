@@ -101,7 +101,7 @@ auto projection(
 
 	auto projectionfn = [&](auto dtype) {
 		if (crop_distance == 0) {
-			auto empty = py::array_t<decltype(dtype), py::array::f_style>({0, 0});
+			auto empty = py::array_t<decltype(dtype), py::array::f_style>({ 0, 0 });
 			return empty.view(py::str(labels.dtype()));
 		}
 
