@@ -3,8 +3,10 @@ import cc3d
 import numpy as np
 import numpy.typing as npt
 
+from .typing import POINT_T, VECTOR_T
+
 def _nearest_point(
-  pt:tuple[int,int], 
+  pt:POINT_T, 
   m:float, 
   b:float,
 ) -> tuple[float, float]:
@@ -22,8 +24,8 @@ def _nearest_point(
 
 def _get_ccl(
   binimg:npt.NDArray[np.bool], 
-  pos:tuple[int,int], 
-  vec:tuple[float,float],
+  pos:POINT_T, 
+  vec:VECTOR_T,
 ) -> np.ndarray:
   slope = np.inf
   if vec[1] != 0:
@@ -70,9 +72,9 @@ def _get_ccl(
 
 def cross_sectional_area_2d(
   binimg:npt.NDArray[np.bool], 
-  pos:tuple[int, int], 
-  vec:tuple[float, float], 
-  anisotropy:tuple[float, float] = ( 1.0, 1.0 ),
+  pos:POINT_T, 
+  vec:VECTOR_T, 
+  anisotropy:VECTOR_T = ( 1.0, 1.0 ),
 ) -> tuple[float, int]:
 
   sx, sy = binimg.shape

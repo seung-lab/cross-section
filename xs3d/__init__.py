@@ -1,18 +1,20 @@
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Union
 
+from .typing import POINT_T, VECTOR_T
 from .twod import cross_sectional_area_2d
 import fastxs3d
 
 import numpy as np
 import numpy.typing as npt
 
+
 def cross_sectional_area(
-  binimg:npt.NDArray[bool],
-  pos:Iterator[int],
-  normal:Iterator[float],
-  anisotropy:Optional[Iterator[float]] = None,
+  binimg:npt.NDArray[np.bool],
+  pos:POINT_T,
+  normal:VECTOR_T,
+  anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
-) -> float:
+) -> Union[float, tuple[float, int]]:
   """
   Find the cross sectional area for a given binary image, 
   point, and normal vector.
@@ -43,11 +45,13 @@ def cross_sectional_area(
   Returns: physical area covered by the section plane
   """
   if anisotropy is None:
-    anisotropy = [ 1.0 ] * binimg.ndim
+    anisotropy = (1.0, 1.0, 1.0)
+    if binimg.ndim == 2:
+      anisotropy = (1.0, 1.0)
 
-  pos = np.array(pos, dtype=np.float32)
-  normal = np.array(normal, dtype=np.float32)
-  anisotropy = np.array(anisotropy, dtype=np.float32)
+  pos = np.asarray(pos, dtype=np.float32)
+  normal = np.asarray(normal, dtype=np.float32)
+  anisotropy = np.asarray(anisotropy, dtype=np.float32)
 
   if binimg.dtype != bool:
     raise ValueError(f"A boolean image is required. Got: {binimg.dtype}")
@@ -73,12 +77,12 @@ def cross_sectional_area(
     return area
 
 def cross_section(
-  binimg:npt.NDArray[bool],
-  pos:Iterator[int],
-  normal:Iterator[float],
-  anisotropy:Optional[Iterator[float]] = None,
+  binimg:npt.NDArray[np.bool],
+  pos:POINT_T,
+  normal:VECTOR_T,
+  anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
-) -> npt.NDArray[np.float32]:
+) -> Union[npt.NDArray[np.float32], tuple[npt.NDArray[np.float32], int]]:
   """
   Compute which voxels are intercepted by a section plane
   (defined by a normal vector).
@@ -109,7 +113,9 @@ def cross_section(
     contribution to the cross sectional area
   """
   if anisotropy is None:
-    anisotropy = [ 1.0 ] * binimg.ndim
+    anisotropy = (1.0, 1.0, 1.0)
+    if binimg.ndim == 2:
+      anisotropy = (1.0, 1.0)
 
   pos = np.array(pos, dtype=np.float32)
   normal = np.array(normal, dtype=np.float32)
@@ -138,9 +144,9 @@ def cross_section(
 
 def slice(
   labels:npt.NDArray[np.integer],
-  pos:Iterator[int],
-  normal:Iterator[float],
-  anisotropy:Optional[Iterator[float]] = None,
+  pos:POINT_T,
+  normal:VECTOR_T,
+  anisotropy:Optional[VECTOR_T] = None,
   standardize_basis:bool = True,
 ) -> npt.NDArray[np.integer]:
   """
@@ -175,11 +181,13 @@ def slice(
   Returns: ndarray
   """
   if anisotropy is None:
-    anisotropy = [ 1.0 ] * labels.ndim
+    anisotropy = (1.0, 1.0, 1.0)
+    if labels.ndim == 2:
+      anisotropy = (1.0, 1.0)
 
-  pos = np.array(pos, dtype=np.float32)
-  normal = np.array(normal, dtype=np.float32)
-  anisotropy = np.array(anisotropy, dtype=np.float32)
+  pos = np.asarray(pos, dtype=np.float32)
+  normal = np.asarray(normal, dtype=np.float32)
+  anisotropy = np.asarray(anisotropy, dtype=np.float32)
 
   if np.all(normal == 0):
     raise ValueError("normal vector must not be a null vector (all zeros).")
