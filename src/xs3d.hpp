@@ -620,7 +620,7 @@ struct Bbox2d {
 		return sx() * sy();
 	}
 	void print() const {
-		printf("Bbox2d(%llu, %llu, %llu, %llu)\n", x_min, x_max, y_min, y_max);
+		printf("Bbox2d(%lld, %lld, %lld, %lld)\n", x_min, x_max, y_min, y_max);
 	}
 };
 
