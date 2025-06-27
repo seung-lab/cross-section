@@ -73,7 +73,8 @@ auto projection(
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
 	const py::array_t<float> &anisotropy,
-	const bool standardize_basis
+	const bool standardize_basis,
+	const float crop_distance
 ) {
 	const uint64_t sx = labels.shape()[0];
 	const uint64_t sy = labels.ndim() < 2
@@ -98,10 +99,12 @@ auto projection(
 	uint64_t psx = distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
 	uint64_t pvoxels = psx * psx;
 
-	py::array arr; 
-
 	auto projectionfn = [&](auto dtype) {
-		arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
+		if (crop_distance == 0) {
+			return py::array(py::array_t<decltype(dtype), py::array::f_style>({ 0, 0 }));
+		}
+
+		py::array arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
 		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
 		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
 		std::fill(out, out + pvoxels, 0);
@@ -112,7 +115,7 @@ auto projection(
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-			standardize_basis,
+			standardize_basis, crop_distance,
 			out
 		);
 

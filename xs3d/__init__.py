@@ -148,6 +148,7 @@ def slice(
   normal:VECTOR_T,
   anisotropy:Optional[VECTOR_T] = None,
   standardize_basis:bool = True,
+  crop:float = float('inf'),
 ) -> npt.NDArray[np.integer]:
   """
   Compute which voxels are intercepted by a section plane
@@ -172,6 +173,9 @@ def slice(
     human expectations (i.e. basis vectors point to the 
     right and up). However, this can cause discontinuities
     during smooth rotations.
+  crop: distance in physical units to limit the slice to.
+    This will reduce the size of the final output image to
+    crop / min(anisotropy) in length.
 
     As of this writing, this feature reflects a basis vector
     if it is pointed > 90deg in opposition to the positive direction
@@ -180,6 +184,8 @@ def slice(
 
   Returns: ndarray
   """
+  assert crop >= 0.0
+
   if anisotropy is None:
     anisotropy = (1.0, 1.0, 1.0)
     if labels.ndim == 2:
@@ -197,7 +203,11 @@ def slice(
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
 
-  return fastxs3d.projection(labels, pos, normal, anisotropy, standardize_basis)
+  return fastxs3d.projection(
+    labels, pos, normal, 
+    anisotropy, standardize_basis,
+    crop
+  )
 
 
 

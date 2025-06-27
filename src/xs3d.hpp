@@ -768,11 +768,16 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const float nx, const float ny, const float nz,
 	const float wx, const float wy, const float wz,
 	const bool positive_basis,
+	const float crop_distance = std::numeric_limits<float>::infinity(),
 	LABEL* out = NULL
 ) {
 
 	Vec3 anisotropy(wx, wy, wz);
+
+	const float crop_distance_sq = crop_distance * crop_distance / anisotropy.min() / anisotropy.min();
+
 	anisotropy /= anisotropy.min();
+
 	const uint64_t distortion = static_cast<uint64_t>(ceil(
 		anisotropy.abs().max()
 	));
@@ -820,7 +825,10 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
 
 	std::stack<uint64_t> stack;
-	stack.push(ploc);
+
+	if (crop_distance > 0) {
+		stack.push(ploc);
+	}
 
 	while (!stack.empty()) {
 		ploc = stack.top();
@@ -838,12 +846,16 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
 		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
 
-		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+		Vec3 delta = basis1 * dx + basis2 * dy;
+		Vec3 cur = pos + delta;
 
 		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 			continue;
 		}
 		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+		else if (delta.norm2() >= crop_distance_sq) {
 			continue;
 		}
 
