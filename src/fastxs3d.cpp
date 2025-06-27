@@ -100,9 +100,10 @@ auto projection(
 	uint64_t pvoxels = psx * psx;
 
 	auto projectionfn = [&](auto dtype) {
+		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ 0, 0 });
+
 		if (crop_distance == 0) {
-			auto empty = py::array_t<decltype(dtype), py::array::f_style>({ 0, 0 });
-			return empty.view(py::str(labels.dtype()));
+			return cutout.view(py::str(labels.dtype()));
 		}
 
 		py::array arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
@@ -124,7 +125,7 @@ auto projection(
 		bbox.x_max++;
 		bbox.y_max++;
 
-		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
+		cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
 	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
 
 	    int64_t csx = bbox.sx();
