@@ -1,13 +1,13 @@
-from typing import List, Tuple
-
 import cc3d
-import numpy as np
 
-def nearest_point(
-  pt:Tuple[int,int], 
+import numpy as np
+import numpy.typing as npt
+
+def _nearest_point(
+  pt:tuple[int,int], 
   m:float, 
   b:float,
-) -> List[float]:
+) -> tuple[float, float]:
   # get eqn of normal line
   m_n = np.inf
   if m != 0:
@@ -18,12 +18,12 @@ def nearest_point(
   p_x = (b - b_n) / (m_n - m)
   p_y = m * p_x + b
 
-  return [p_x, p_y]
+  return (p_x, p_y)
 
-def get_ccl(
-  binimg:np.ndarray, 
-  pos:Tuple[int,int], 
-  vec:Tuple[float,float],
+def _get_ccl(
+  binimg:npt.NDArray[np.bool], 
+  pos:tuple[int,int], 
+  vec:tuple[float,float],
 ) -> np.ndarray:
   slope = np.inf
   if vec[1] != 0:
@@ -39,13 +39,13 @@ def get_ccl(
         continue
 
       if slope == 0:
-        p_x = x
-        p_y = pos[1]
+        p_x = float(x)
+        p_y = float(pos[1])
       elif slope == np.inf:
-        p_x = pos[0]
-        p_y = y
+        p_x = float(pos[0])
+        p_y = float(y)
       else:
-        p_x, p_y = nearest_point([x,y], slope, b)
+        p_x, p_y = _nearest_point((x,y), slope, b)
 
       v0 = float(x) - 0.5
       v1 = float(x) + 0.5
@@ -69,27 +69,27 @@ def get_ccl(
   return cc3d.connected_components(ccl, connectivity=8)
 
 def cross_sectional_area_2d(
-  binimg:np.ndarray, 
-  pos:Tuple[int, int], 
-  vec:Tuple[float, float], 
-  anisotropy:Tuple[float, float] = [ 1.0, 1.0 ],
-) -> float:
+  binimg:npt.NDArray[np.bool], 
+  pos:tuple[int, int], 
+  vec:tuple[float, float], 
+  anisotropy:tuple[float, float] = ( 1.0, 1.0 ),
+) -> tuple[float, int]:
 
   sx, sy = binimg.shape
 
   if pos[0] >= sx or pos[0] < 0:
-    return [0.0, 0b00111111]
+    return (0.0, 0b00111111)
 
   if pos[1] >= sy or pos[1] < 0:
-    return [0.0, 0b00111111]
+    return (0.0, 0b00111111)
 
   if binimg[int(pos[0]), int(pos[1])] == False:
-    return [0.0, 0b00111111]
+    return (0.0, 0b00111111)
 
   nhat = np.array([ -vec[1], vec[0] ], dtype=np.float32)
   nhat = nhat / np.sqrt(nhat[0] ** 2 + nhat[1] ** 2)
 
-  ccl = get_ccl(binimg, pos, vec)
+  ccl = _get_ccl(binimg, pos, vec)
   label = ccl[int(pos[0]), int(pos[1])]
 
   total = 0.0
@@ -145,20 +145,20 @@ def cross_sectional_area_2d(
         if x1 >= v0 and x1 <= v1:
           pts.append([x1, h1])
 
-      pts = np.unique(pts, axis=0)
+      uniq = np.unique(pts, axis=0)
 
-      if len(pts) < 2:
+      if len(uniq) < 2:
         continue
-      elif len(pts) > 2:
-        raise ValueError(pts)
+      elif len(uniq) > 2:
+        raise ValueError(uniq)
 
-      pt1, pt2 = pts
+      pt1, pt2 = uniq
 
       px = wx * (pt1[0] - pt2[0])
       py = wy * (pt1[1] - pt2[1])
 
       total += np.sqrt(px*px + py*py)
 
-  return total, contact
+  return (total, contact)
 
 

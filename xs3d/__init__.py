@@ -1,15 +1,16 @@
-from typing import Sequence, Optional
+from typing import Iterator, Optional
 
 from .twod import cross_sectional_area_2d
 import fastxs3d
 
 import numpy as np
+import numpy.typing as npt
 
 def cross_sectional_area(
-  binimg:np.ndarray,
-  pos:Sequence[int],
-  normal:Sequence[float],
-  anisotropy:Optional[Sequence[float]] = None,
+  binimg:npt.NDArray[bool],
+  pos:Iterator[int],
+  normal:Iterator[float],
+  anisotropy:Optional[Iterator[float]] = None,
   return_contact:bool = False,
 ) -> float:
   """
@@ -72,12 +73,12 @@ def cross_sectional_area(
     return area
 
 def cross_section(
-  binimg:np.ndarray,
-  pos:Sequence[int],
-  normal:Sequence[float],
-  anisotropy:Optional[Sequence[float]] = None,
+  binimg:npt.NDArray[bool],
+  pos:Iterator[int],
+  normal:Iterator[float],
+  anisotropy:Optional[Iterator[float]] = None,
   return_contact:bool = False,
-) -> np.ndarray:
+) -> npt.NDArray[np.float32]:
   """
   Compute which voxels are intercepted by a section plane
   (defined by a normal vector).
@@ -136,12 +137,12 @@ def cross_section(
   return section
 
 def slice(
-  labels:np.ndarray,
-  pos:Sequence[int],
-  normal:Sequence[float],
-  anisotropy:Optional[Sequence[float]] = None,
+  labels:npt.NDArray[np.integer],
+  pos:Iterator[int],
+  normal:Iterator[float],
+  anisotropy:Optional[Iterator[float]] = None,
   standardize_basis:bool = True,
-) -> np.ndarray:
+) -> npt.NDArray[np.integer]:
   """
   Compute which voxels are intercepted by a section plane
   and project them onto a plane.
