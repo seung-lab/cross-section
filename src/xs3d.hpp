@@ -7,6 +7,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <utility>
 #include <vector>
 #include <stdexcept>
 
@@ -181,6 +182,87 @@ float area_of_quad(
 	return v1.cross(v2).norm();
 }
 
+#define CMP_SWAP(x,y) \
+	if (values[x] > values[y]) {\
+		std::swap(values[x], values[y]);\
+		std::swap(vecs[x], vecs[y]);\
+	}
+
+/*
+https://bertdobbelaere.github.io/sorting_networks.html
+Optimal sorting network:
+[(0,3),(1,4)]
+[(0,2),(1,3)]
+[(0,1),(2,4)]
+[(1,2),(3,4)]
+[(2,3)] 
+*/
+void sorting_network_5(
+	std::vector<Vec3>& vecs,
+	const Vec3& prime_spoke,
+	const Vec3& basis
+) {
+	std::vector<float> values(5);
+
+	for (int i = 0; i < 5; i++) {
+		Vec3& vec = vecs[i];
+		float projection = vec.dot(prime_spoke) / vec.norm();
+		values[i] = (vec.dot(basis) < 0) 
+			? (projection - 1) 
+			: (1 - projection);
+	}
+
+	CMP_SWAP(0,3)
+	CMP_SWAP(1,4)
+	CMP_SWAP(0,2)
+	CMP_SWAP(1,3)
+	CMP_SWAP(0,1)
+	CMP_SWAP(2,4)
+	CMP_SWAP(1,2)
+	CMP_SWAP(3,4)
+	CMP_SWAP(2,3)
+}
+
+/*
+https://bertdobbelaere.github.io/sorting_networks.html
+Optimal sorting network:
+[(0,5),(1,3),(2,4)]
+[(1,2),(3,4)]
+[(0,3),(2,5)]
+[(0,1),(2,3),(4,5)]
+[(1,2),(3,4)]
+*/
+void sorting_network_6(
+	std::vector<Vec3>& vecs,
+	const Vec3& prime_spoke,
+	const Vec3& basis
+) {
+	std::vector<float> values(6);
+
+	for (int i = 0; i < 6; i++) {
+		Vec3& vec = vecs[i];
+		float projection = vec.dot(prime_spoke) / vec.norm();
+		values[i] = (vec.dot(basis) < 0) 
+			? (projection - 1) 
+			: (1 - projection);
+	}
+
+	CMP_SWAP(0,5)
+	CMP_SWAP(1,3)
+	CMP_SWAP(2,4)
+	CMP_SWAP(1,2)
+	CMP_SWAP(3,4)
+	CMP_SWAP(0,3)
+	CMP_SWAP(2,5)
+	CMP_SWAP(0,1)
+	CMP_SWAP(2,3)
+	CMP_SWAP(4,5)
+	CMP_SWAP(1,2)
+	CMP_SWAP(3,4)
+}
+
+#undef CMP_SWAP
+
 float area_of_poly(
 	const std::vector<Vec3>& pts, 
 	const Vec3& normal,
@@ -224,7 +306,15 @@ float area_of_poly(
 		return a_val < b_val;
 	};
 
-	std::sort(spokes.begin(), spokes.end(), angularOrder);
+	if (pts.size() == 5) {
+		sorting_network_5(spokes, prime_spoke, basis);
+	}
+	else if (pts.size() == 6) {
+		sorting_network_6(spokes, prime_spoke, basis);
+	}
+	else {
+		std::sort(spokes.begin(), spokes.end(), angularOrder);
+	}
 
 	for (Vec3& spoke : spokes) {
 		spoke *= anisotropy;
