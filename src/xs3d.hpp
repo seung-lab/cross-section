@@ -188,6 +188,11 @@ float area_of_quad(
 		std::swap(vecs[x], vecs[y]);\
 	}
 
+#define CMP_SWAP_FAST(x,y) \
+	if (values[x] > values[y]) {\
+		std::swap(vecs[x], vecs[y]);\
+	}
+
 /*
 https://bertdobbelaere.github.io/sorting_networks.html
 Optimal sorting network:
@@ -220,7 +225,7 @@ void sorting_network_5(
 	CMP_SWAP(2,4)
 	CMP_SWAP(1,2)
 	CMP_SWAP(3,4)
-	CMP_SWAP(2,3)
+	CMP_SWAP_FAST(2,3)
 }
 
 /*
@@ -256,9 +261,9 @@ void sorting_network_6(
 	CMP_SWAP(2,5)
 	CMP_SWAP(0,1)
 	CMP_SWAP(2,3)
-	CMP_SWAP(4,5)
-	CMP_SWAP(1,2)
-	CMP_SWAP(3,4)
+	CMP_SWAP_FAST(4,5)
+	CMP_SWAP_FAST(1,2)
+	CMP_SWAP_FAST(3,4)
 }
 
 #undef CMP_SWAP
