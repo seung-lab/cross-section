@@ -1,6 +1,7 @@
 #ifndef __XS3D_HPP__
 #define __XS3D_HPP__
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -207,7 +208,7 @@ void sorting_network_5(
 	const Vec3& prime_spoke,
 	const Vec3& basis
 ) {
-	std::vector<float> values(5);
+	static thread_local std::array<float, 5> values = {};
 
 	for (int i = 0; i < 5; i++) {
 		Vec3& vec = vecs[i];
@@ -242,7 +243,7 @@ void sorting_network_6(
 	const Vec3& prime_spoke,
 	const Vec3& basis
 ) {
-	std::vector<float> values(6);
+	static thread_local std::array<float, 6> values = {};
 
 	for (int i = 0; i < 6; i++) {
 		Vec3& vec = vecs[i];
