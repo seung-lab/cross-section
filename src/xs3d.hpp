@@ -195,6 +195,8 @@ float area_of_poly(
 	centroid /= static_cast<float>(pts.size());
 
 	std::vector<Vec3> spokes;
+	spokes.reserve(pts.size());
+	
 	for (Vec3 pt : pts) {
 		spokes.push_back(pt - centroid);
 	}
