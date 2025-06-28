@@ -276,14 +276,15 @@ float area_of_poly(
 ) {
 	
 	Vec3 centroid(0,0,0);
+	const size_t N_pts = pts.size();
 
 	for (Vec3 pt : pts) {
 		centroid += pt;
 	}
-	centroid /= static_cast<float>(pts.size());
+	centroid /= static_cast<float>(N_pts);
 
 	std::vector<Vec3> spokes;
-	spokes.reserve(pts.size());
+	spokes.reserve(N_pts);
 	
 	for (Vec3 pt : pts) {
 		spokes.push_back(pt - centroid);
@@ -312,10 +313,10 @@ float area_of_poly(
 		return a_val < b_val;
 	};
 
-	if (pts.size() == 5) {
+	if (N_pts == 5) {
 		sorting_network_5(spokes, prime_spoke, basis);
 	}
-	else if (pts.size() == 6) {
+	else if (N_pts == 6) {
 		sorting_network_6(spokes, prime_spoke, basis);
 	}
 	else {
@@ -327,10 +328,10 @@ float area_of_poly(
 	}
 
 	float area = 0.0;
-	for (uint64_t i = 0; i < spokes.size() - 1; i++) {
+	for (uint64_t i = 0; i < N_pts - 1; i++) {
 		area += spokes[i].cross(spokes[i+1]).norm();
 	}
-	area += spokes[0].cross(spokes[spokes.size() - 1]).norm();
+	area += spokes[0].cross(spokes[N_pts - 1]).norm();
 
 	return area * 0.5;
 }
