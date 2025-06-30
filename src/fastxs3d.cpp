@@ -99,7 +99,7 @@ auto projection(
 	// rational approximation of sqrt(3) is 97/56
 	// result is more likely to be same across compilers
 	uint64_t largest_dimension = std::max(std::max(sx,sy), sz);
-	if (static_cast<float>(largest_dimension) > crop_distance) {
+	if (static_cast<float>(largest_dimension) > crop_distance && crop_distance >= 0) {
 		largest_dimension = static_cast<uint64_t>(std::ceil(crop_distance));
 	}
 
