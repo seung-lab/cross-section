@@ -51,6 +51,9 @@ image = xs3d.cross_section(
 # Note: result may be reflected or transposed
 # compared with what you might expect.
 image2d = xs3d.slice(labels, vertex, normal, anisotropy)
+
+# You can also crop your ROI using physical units
+image2d = xs3d.slice(labels, vertex, normal, anisotropy, crop=100) 
 ```
 
 # Installation
