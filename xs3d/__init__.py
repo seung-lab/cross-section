@@ -1,17 +1,20 @@
-from typing import Sequence, Optional
+from typing import Iterator, Optional, Union
 
+from .typing import POINT_T, VECTOR_T
 from .twod import cross_sectional_area_2d
 import fastxs3d
 
 import numpy as np
+import numpy.typing as npt
+
 
 def cross_sectional_area(
-  binimg:np.ndarray,
-  pos:Sequence[int],
-  normal:Sequence[float],
-  anisotropy:Optional[Sequence[float]] = None,
+  binimg:npt.NDArray[np.bool],
+  pos:POINT_T,
+  normal:VECTOR_T,
+  anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
-) -> float:
+) -> Union[float, tuple[float, int]]:
   """
   Find the cross sectional area for a given binary image, 
   point, and normal vector.
@@ -42,11 +45,13 @@ def cross_sectional_area(
   Returns: physical area covered by the section plane
   """
   if anisotropy is None:
-    anisotropy = [ 1.0 ] * binimg.ndim
+    anisotropy = (1.0, 1.0, 1.0)
+    if binimg.ndim == 2:
+      anisotropy = (1.0, 1.0)
 
-  pos = np.array(pos, dtype=np.float32)
-  normal = np.array(normal, dtype=np.float32)
-  anisotropy = np.array(anisotropy, dtype=np.float32)
+  pos = np.asarray(pos, dtype=np.float32)
+  normal = np.asarray(normal, dtype=np.float32)
+  anisotropy = np.asarray(anisotropy, dtype=np.float32)
 
   if binimg.dtype != bool:
     raise ValueError(f"A boolean image is required. Got: {binimg.dtype}")
@@ -72,12 +77,12 @@ def cross_sectional_area(
     return area
 
 def cross_section(
-  binimg:np.ndarray,
-  pos:Sequence[int],
-  normal:Sequence[float],
-  anisotropy:Optional[Sequence[float]] = None,
+  binimg:npt.NDArray[np.bool],
+  pos:POINT_T,
+  normal:VECTOR_T,
+  anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
-) -> np.ndarray:
+) -> Union[npt.NDArray[np.float32], tuple[npt.NDArray[np.float32], int]]:
   """
   Compute which voxels are intercepted by a section plane
   (defined by a normal vector).
@@ -108,7 +113,9 @@ def cross_section(
     contribution to the cross sectional area
   """
   if anisotropy is None:
-    anisotropy = [ 1.0 ] * binimg.ndim
+    anisotropy = (1.0, 1.0, 1.0)
+    if binimg.ndim == 2:
+      anisotropy = (1.0, 1.0)
 
   pos = np.array(pos, dtype=np.float32)
   normal = np.array(normal, dtype=np.float32)
@@ -136,12 +143,13 @@ def cross_section(
   return section
 
 def slice(
-  labels:np.ndarray,
-  pos:Sequence[int],
-  normal:Sequence[float],
-  anisotropy:Optional[Sequence[float]] = None,
+  labels:npt.NDArray[np.integer],
+  pos:POINT_T,
+  normal:VECTOR_T,
+  anisotropy:Optional[VECTOR_T] = None,
   standardize_basis:bool = True,
-) -> np.ndarray:
+  crop:float = float('inf'),
+) -> npt.NDArray[np.integer]:
   """
   Compute which voxels are intercepted by a section plane
   and project them onto a plane.
@@ -165,6 +173,9 @@ def slice(
     human expectations (i.e. basis vectors point to the 
     right and up). However, this can cause discontinuities
     during smooth rotations.
+  crop: distance in physical units to limit the slice to.
+    This will reduce the size of the final output image to
+    crop / min(anisotropy) in length.
 
     As of this writing, this feature reflects a basis vector
     if it is pointed > 90deg in opposition to the positive direction
@@ -173,22 +184,31 @@ def slice(
 
   Returns: ndarray
   """
-  if anisotropy is None:
-    anisotropy = [ 1.0 ] * labels.ndim
+  assert crop >= 0.0
 
-  pos = np.array(pos, dtype=np.float32)
-  normal = np.array(normal, dtype=np.float32)
-  anisotropy = np.array(anisotropy, dtype=np.float32)
+  if anisotropy is None:
+    anisotropy = (1.0, 1.0, 1.0)
+    if labels.ndim == 2:
+      anisotropy = (1.0, 1.0)
+
+  pos = np.asarray(pos, dtype=np.float32)
+  normal = np.asarray(normal, dtype=np.float32)
+  anisotropy = np.asarray(anisotropy, dtype=np.float32)
 
   if np.all(normal == 0):
     raise ValueError("normal vector must not be a null vector (all zeros).")
 
-  labels = np.asfortranarray(labels)
-
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
 
-  return fastxs3d.projection(labels, pos, normal, anisotropy, standardize_basis)
+  if not labels.flags.f_contiguous:
+    labels = np.ascontiguousarray(labels)
+
+  return fastxs3d.projection(
+    labels, pos, normal, 
+    anisotropy, standardize_basis,
+    crop
+  )
 
 
 

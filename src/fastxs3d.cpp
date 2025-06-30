@@ -73,7 +73,8 @@ auto projection(
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
 	const py::array_t<float> &anisotropy,
-	const bool standardize_basis
+	const bool standardize_basis,
+	const float crop_distance
 ) {
 	const uint64_t sx = labels.shape()[0];
 	const uint64_t sy = labels.ndim() < 2
@@ -82,6 +83,8 @@ auto projection(
 	const uint64_t sz = labels.ndim() < 3 
 		? 1 
 		: labels.shape()[2];
+
+	const bool c_order = py::array::c_style == (labels.flags() & py::array::c_style);
 
 	float wx = anisotropy.at(0);
 	float wy = anisotropy.at(1);
@@ -95,24 +98,33 @@ auto projection(
 
 	// rational approximation of sqrt(3) is 97/56
 	// result is more likely to be same across compilers
-	uint64_t psx = distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
-	uint64_t pvoxels = psx * psx;
+	uint64_t largest_dimension = std::max(std::max(sx,sy), sz);
+	if (static_cast<float>(largest_dimension) > crop_distance && crop_distance >= 0) {
+		largest_dimension = static_cast<uint64_t>(std::ceil(crop_distance));
+	}
 
-	py::array arr; 
+	const uint64_t psx = (distortion * 2 * 97 * largest_dimension / 56) + 1;
+	const uint64_t pvoxels = psx * psx;
 
 	auto projectionfn = [&](auto dtype) {
-		arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
+		auto cutout = py::array_t<decltype(dtype), py::array::f_style>(std::vector<ssize_t>{ 0, 0 });
+
+		if (crop_distance == 0) {
+			return cutout.view(py::str(labels.dtype()));
+		}
+
+		py::array arr = py::array_t<decltype(dtype), py::array::f_style>({ psx, psx });
 		auto out = reinterpret_cast<decltype(dtype)*>(arr.request().ptr);
 		auto data = reinterpret_cast<decltype(dtype)*>(labels.request().ptr);
 		std::fill(out, out + pvoxels, 0);
 
 		std::tuple<decltype(dtype)*, xs3d::Bbox2d> tup = xs3d::cross_section_projection<decltype(dtype)>(
 			data,
-			sx, sy, sz,
+			sx, sy, sz, c_order,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-			standardize_basis,
+			standardize_basis, crop_distance,
 			out
 		);
 
@@ -120,7 +132,7 @@ auto projection(
 		bbox.x_max++;
 		bbox.y_max++;
 
-		auto cutout = py::array_t<decltype(dtype), py::array::f_style>({ bbox.sx(), bbox.sy() });
+		cutout = py::array_t<decltype(dtype), py::array::f_style>(std::vector<ssize_t>{ bbox.sx(), bbox.sy() });
 	    auto cutout_ptr = reinterpret_cast<decltype(dtype)*>(cutout.request().ptr);
 
 	    int64_t csx = bbox.sx();

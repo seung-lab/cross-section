@@ -719,7 +719,7 @@ struct Bbox2d {
 		return sx() * sy();
 	}
 	void print() const {
-		printf("Bbox2d(%llu, %llu, %llu, %llu)\n", x_min, x_max, y_min, y_max);
+		printf("Bbox2d(%lld, %lld, %lld, %lld)\n", x_min, x_max, y_min, y_max);
 	}
 };
 
@@ -862,16 +862,22 @@ template <typename LABEL>
 std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const LABEL* labels,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	
+	const bool c_order,
+
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
 	const float wx, const float wy, const float wz,
 	const bool positive_basis,
+	const float crop_distance = std::numeric_limits<float>::infinity(),
 	LABEL* out = NULL
 ) {
 
 	Vec3 anisotropy(wx, wy, wz);
+
+	const float crop_distance_sq = crop_distance * crop_distance / anisotropy.min() / anisotropy.min();
+
 	anisotropy /= anisotropy.min();
+
 	const uint64_t distortion = static_cast<uint64_t>(ceil(
 		anisotropy.abs().max()
 	));
@@ -879,7 +885,12 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 
 	// maximum possible size of plane
 	// rational approximation of sqrt(3) is 97/56
-	const uint64_t psx = (distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56) + 1;
+	uint64_t largest_dimension = std::max(std::max(sx,sy), sz);
+	if (static_cast<float>(largest_dimension) > crop_distance && crop_distance >= 0) {
+		largest_dimension = static_cast<uint64_t>(std::ceil(crop_distance));
+	}
+
+	const uint64_t psx = (distortion * 2 * 97 * largest_dimension / 56) + 1;
 	const uint64_t psy = psx;
 
 	Bbox2d bbx;
@@ -919,7 +930,10 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
 
 	std::stack<uint64_t> stack;
-	stack.push(ploc);
+
+	if (crop_distance > 0) {
+		stack.push(ploc);
+	}
 
 	while (!stack.empty()) {
 		ploc = stack.top();
@@ -937,12 +951,16 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
 		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
 
-		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+		Vec3 delta = basis1 * dx + basis2 * dy;
+		Vec3 cur = pos + delta;
 
 		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
 			continue;
 		}
 		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+		else if (delta.norm2() >= crop_distance_sq) {
 			continue;
 		}
 
@@ -951,10 +969,18 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
 		bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
 
-		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
-			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
-		);
-
+		uint64_t loc;
+		if (c_order) {
+			loc = static_cast<uint64_t>(cur.z) + sz * (
+				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.x)
+			);			
+		}
+		else {
+			loc = static_cast<uint64_t>(cur.x) + sx * (
+				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+			);
+		}
+		 
 		out[ploc] = labels[loc];
 
 		uint64_t up = ploc - psx; 
