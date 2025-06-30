@@ -198,10 +198,11 @@ def slice(
   if np.all(normal == 0):
     raise ValueError("normal vector must not be a null vector (all zeros).")
 
-  labels = np.asfortranarray(labels)
-
   if labels.ndim != 3:
     raise ValueError(f"{labels.ndim} dimensions not supported")
+
+  if not labels.flags.f_contiguous:
+    labels = np.ascontiguousarray(labels)
 
   return fastxs3d.projection(
     labels, pos, normal, 

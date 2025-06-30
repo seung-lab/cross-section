@@ -84,6 +84,8 @@ auto projection(
 		? 1 
 		: labels.shape()[2];
 
+	const bool c_order = py::array::c_style == (labels.flags() & py::array::c_style);
+
 	float wx = anisotropy.at(0);
 	float wy = anisotropy.at(1);
 	float wz = anisotropy.at(2);
@@ -118,7 +120,7 @@ auto projection(
 
 		std::tuple<decltype(dtype)*, xs3d::Bbox2d> tup = xs3d::cross_section_projection<decltype(dtype)>(
 			data,
-			sx, sy, sz,
+			sx, sy, sz, c_order,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
 			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),

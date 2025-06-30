@@ -763,7 +763,8 @@ template <typename LABEL>
 std::tuple<LABEL*, Bbox2d> cross_section_projection(
 	const LABEL* labels,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	
+	const bool c_order,
+
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
 	const float wx, const float wy, const float wz,
@@ -869,10 +870,18 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		bbx.y_min = std::min(bbx.y_min, static_cast<int64_t>(y));
 		bbx.y_max = std::max(bbx.y_max, static_cast<int64_t>(y));
 
-		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
-			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
-		);
-
+		uint64_t loc;
+		if (c_order) {
+			loc = static_cast<uint64_t>(cur.z) + sz * (
+				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.x)
+			);			
+		}
+		else {
+			loc = static_cast<uint64_t>(cur.x) + sx * (
+				static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+			);
+		}
+		 
 		out[ploc] = labels[loc];
 
 		uint64_t up = ploc - psx; 
