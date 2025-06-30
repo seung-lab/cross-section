@@ -785,7 +785,12 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 
 	// maximum possible size of plane
 	// rational approximation of sqrt(3) is 97/56
-	const uint64_t psx = (distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56) + 1;
+	uint64_t largest_dimension = std::max(std::max(sx,sy), sz);
+	if (static_cast<float>(largest_dimension) > crop_distance) {
+		largest_dimension = static_cast<uint64_t>(std::ceil(crop_distance));
+	}
+
+	const uint64_t psx = (distortion * 2 * 97 * largest_dimension / 56) + 1;
 	const uint64_t psy = psx;
 
 	Bbox2d bbx;

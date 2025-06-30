@@ -96,8 +96,13 @@ auto projection(
 
 	// rational approximation of sqrt(3) is 97/56
 	// result is more likely to be same across compilers
-	uint64_t psx = distortion * 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
-	uint64_t pvoxels = psx * psx;
+	uint64_t largest_dimension = std::max(std::max(sx,sy), sz);
+	if (static_cast<float>(largest_dimension) > crop_distance) {
+		largest_dimension = static_cast<uint64_t>(std::ceil(crop_distance));
+	}
+
+	const uint64_t psx = (distortion * 2 * 97 * largest_dimension / 56) + 1;
+	const uint64_t pvoxels = psx * psx;
 
 	auto projectionfn = [&](auto dtype) {
 		auto cutout = py::array_t<decltype(dtype), py::array::f_style>(std::vector<ssize_t>{ 0, 0 });
