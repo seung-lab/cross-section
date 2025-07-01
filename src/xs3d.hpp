@@ -12,6 +12,8 @@
 #include <vector>
 #include <stdexcept>
 
+#include "builtins.hpp"
+
 namespace {
 
 static uint8_t _dummy_contact = false;
@@ -341,24 +343,132 @@ float area_of_poly(
 	}
 }
 
-const Vec3 c[8] = {
-	Vec3(0, 0, 0), // 0
-	Vec3(0, 0, 1), // 1 
-	Vec3(0, 1, 0), // 2 
-	Vec3(0, 1, 1), // 3
-	Vec3(1, 0, 0), // 4
-	Vec3(1, 0, 1), // 5
-	Vec3(1, 1, 0), // 6
-	Vec3(1, 1, 1) // 7
-};
+void check_intersections_2x2x2(
+	std::vector<Vec3>& pts,
+	const uint64_t x, const uint64_t y, const uint64_t z,
+	const Vec3& pos, const Vec3& normal, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+	static const Vec3 c[8] = {
+		Vec3(0, 0, 0), // 0
+		Vec3(0, 0, 2), // 1 
+		Vec3(0, 2, 0), // 2 
+		Vec3(0, 2, 2), // 3
+		Vec3(2, 0, 0), // 4
+		Vec3(2, 0, 2), // 5
+		Vec3(2, 1, 0), // 6
+		Vec3(2, 2, 2) // 7
+	};
 
-const Vec3 pipes[3] = {
-	ihat, jhat, khat
-};
+	static const Vec3 pipes[3] = {
+		ihat, jhat, khat
+	};
 
-const Vec3 pipe_points[4] = {
-	c[0], c[3], c[5], c[6]
-};
+	static const Vec3 pipe_points[4] = {
+		c[0], c[3], c[5], c[6]
+	};
+
+	pts.clear();
+
+	Vec3 minpt(x,y,z);
+
+	// for testing the 2x2x2 field, we need to move the point
+	// to the center of the grid. then if the distance to the plane is
+	// > sqrt(3), it's not intersecting.
+	minpt += 0.5; 
+
+	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
+
+	float dist_to_plane = std::abs((minpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > max_dist_to_plane) { 
+		return;
+	}
+
+	minpt -= 1.0; // move it from the center to the actual minpt now
+
+	Vec3 pos2 = pos - minpt;
+
+	float corner_projections[4] = {
+		(pos2 - c[0]).dot(normal),
+		(pos2 - c[3]).dot(normal),
+		(pos2 - c[5]).dot(normal),
+		(pos2 - c[6]).dot(normal),
+	};
+
+	auto inlist = [&](const Vec3& pt){
+		for (const Vec3& p : pts) {
+			if (p.close(pt)) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	const uint64_t max_pts = (normal.num_zero_dims() >= 1)
+		? 4
+		: 6;
+
+	constexpr float bound = 0.5 + epsilon;
+
+	Vec3 corner;
+
+	for (int i = 0; i < 12; i++) {		
+		float proj = corner_projections[i & 0b11];
+
+		if (proj == 0) {
+			corner = pipe_points[i & 0b11];
+			corner += minpt;
+			if (i < 4 && !inlist(corner)) {
+				pts.push_back(corner);
+			}
+			continue;
+		}
+
+		float proj2 = projections[i >> 2];
+
+		// if traveling parallel to plane but
+		// not on the plane
+		if (proj2 == 0) {
+			continue;
+		}
+
+		float t = proj * inv_projections[i >> 2];
+		if (std::abs(t) > 1 + epsilon) {
+			continue;
+		}
+
+		Vec3 pipe = pipes[i >> 2];
+		corner = pipe_points[i & 0b11];
+		corner += minpt;
+		Vec3 nearest_pt = corner + pipe * t;
+
+		if (std::abs(nearest_pt.x - x) >= bound) {
+			continue;
+		}
+		else if (std::abs(nearest_pt.y - y) >= bound) {
+			continue;
+		}
+		else if (std::abs(nearest_pt.z - z) >= bound) {
+			continue;
+		}
+
+		// if t = -1, 0, 1 we're on a corner, which are the only areas where a
+		// duplicate vertex is possible.
+		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-1) < epsilon);
+
+		if (!iscorner || !inlist(nearest_pt)) {
+			pts.push_back(nearest_pt);
+
+			if (pts.size() >= max_pts) {
+				break;
+			}
+		}
+	}
+}
 
 void check_intersections(
 	std::vector<Vec3>& pts,
@@ -367,6 +477,25 @@ void check_intersections(
 	const std::vector<float>& projections, 
 	const std::vector<float>& inv_projections
 ) {
+	static const Vec3 c[8] = {
+		Vec3(0, 0, 0), // 0
+		Vec3(0, 0, 1), // 1 
+		Vec3(0, 1, 0), // 2 
+		Vec3(0, 1, 1), // 3
+		Vec3(1, 0, 0), // 4
+		Vec3(1, 0, 1), // 5
+		Vec3(1, 1, 0), // 6
+		Vec3(1, 1, 1) // 7
+	};
+
+	static const Vec3 pipes[3] = {
+		ihat, jhat, khat
+	};
+
+	static const Vec3 pipe_points[4] = {
+		c[0], c[3], c[5], c[6]
+	};
+
 	pts.clear();
 
 	Vec3 minpt(x,y,z);
@@ -463,6 +592,134 @@ void check_intersections(
 	}
 }
 
+float calc_area_at_point_2x2x2(
+	const uint8_t* binimg,
+	std::vector<bool>& ccl,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections,
+	float* plane_visualization
+) {
+
+	const uint64_t sxy = sx * sy;
+
+	const uint64_t x = static_cast<uint64_t>(delta.x) & ~1;
+	const uint64_t y = static_cast<uint64_t>(delta.y) & ~1;
+	const uint64_t z = static_cast<uint64_t>(delta.z) & ~1;
+
+	const uint64_t loc = x + sx * (y + sy * z);
+
+	uint8_t cube = (
+		(binimg[loc] > 0)
+		| ((x < sx - 1) && (binimg[loc+1] > 0) << 1)
+		| ((y < sy - 1) && (binimg[loc+sx] > 0) << 2)
+		| ((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0) << 3)
+		| ((z < sz - 1) && (binimg[loc+sxy] > 0) << 4)
+		| ((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0) << 5)
+		| ((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0) << 6)
+		| ((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0) << 7)
+	);
+
+	ccl[loc] = true;
+	ccl[loc+1] = true;
+	ccl[loc+sx] = true;
+	ccl[loc+sx+1] = true;
+	ccl[loc+sxy] = true;
+	ccl[loc+sxy+1] = true;
+	ccl[loc+sxy+sx] = true;
+	ccl[loc+sxy+sx+1] = true;
+
+	uint8_t num_set = popcount(cube);
+
+	auto areafn = [&]() {
+		check_intersections_2x2x2(
+			pts, 
+			x, y, z,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		const auto size = pts.size();
+
+		float area = 0.0;
+
+		if (size < 3) {
+			return 0.0;
+		}
+		else if (size == 3) {
+			return area_of_triangle(pts, anisotropy);
+		}
+		else if (size == 4) { 
+			return area_of_quad(pts, anisotropy);
+		}
+		else { // 5, 6
+			return area_of_poly(pts, normal, anisotropy);
+		}
+	};
+
+	if (num_set == 0) {
+		return 0.0;
+	}
+	else if (num_set == 8) {
+		return areafn();
+	}
+	else if (num_set == 7) {
+		areafn2x2 - 1
+		// 8 if statements
+		ffs(~cube) -> xyz indices
+	}
+	else if (num_set == 6) {
+		areafn2x2 - 2
+		// 8c2 if statements == 28
+	}
+	else if (num_set == 5) {
+		// 8c3 == 56 or a triple for loop
+	}
+	else if (num_set == 4) {
+		// maybe try to detect a few special cases that are faster?
+		// 8c4 == 70 if statements or a triple for loop
+	}
+	else if (num_set <= 3) { // triple for loop
+		// 8c3 == 56 or a triple for loop
+	} 
+	else if (num_set == 2) {
+		+ 2
+		// 8c2 if statements == 28
+	}
+	else if (num_set == 1) {
+		// 8 if statements, jump table?
+		+ 1
+	}
+
+
+
+
+				if (!binimg[loc]) {
+					continue;
+				}
+
+				if (ccl[loc] == 0) {
+					ccl[loc] = 1;
+					
+					
+
+					subtotal += area;
+
+					if (plane_visualization != NULL && area > 0.0) {
+						plane_visualization[loc] = area;
+					}
+				}
+			}
+		}
+	}
+
+	return subtotal;
+}
+
+
 float calc_area_at_point(
 	const uint8_t* binimg,
 	std::vector<bool>& ccl,
@@ -554,6 +811,151 @@ float calc_area_at_point(
 	}
 
 	return subtotal;
+}
+
+float cross_sectional_area_helper_2x2x2(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& pos, // plane position
+	const Vec3& normal, // plane normal vector
+	const Vec3& anisotropy, // anisotropy
+	uint8_t& contact, 
+	float* plane_visualization
+) {
+	// const uint64_t grid_size = std::max((sx * sy * sz + 7) >> 3, 1);
+	std::vector<bool> ccl(sx * sy * sz);
+
+	// rational approximation of sqrt(3) is 97/56
+	// more reliable behavior across compilers/architectures
+	uint64_t plane_size = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+
+	// maximum possible size of plane
+	uint64_t psx = plane_size;
+	uint64_t psy = psx;
+
+	std::vector<bool> visited(psx * psy);
+
+	Vec3 basis1 = normal.cross(ihat);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(jhat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	uint64_t plane_pos_x = plane_size / 2;
+	uint64_t plane_pos_y = plane_size / 2;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<uint64_t> stack;
+	stack.push(ploc);
+
+	float total = 0.0;
+
+	std::vector<Vec3> pts;
+	pts.reserve(6);
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+			continue;
+		}
+		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+
+		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		);
+
+		if (!binimg[loc]) {
+			continue;
+		}
+
+		contact |= (cur.x < 1); // -x
+		contact |= (cur.x >= sx - 1) << 1; // +x
+		contact |= (cur.y < 1) << 2; // -y
+		contact |= (cur.y >= sy - 1) << 3; // +y
+		contact |= (cur.z < 1) << 4; // -z
+		contact |= (cur.z >= sz - 1) << 5; // +z
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		uint64_t upleft = ploc - psx - 1; 
+		uint64_t downleft = ploc + psx - 1;
+		uint64_t upright = ploc - psx + 1;
+		uint64_t downright = ploc + psx + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+
+		if (x > 0 && y > 0 && !visited[upleft]) {
+			stack.push(upleft);
+		}
+		if (x < psx - 1 && y > 0 && !visited[upright]) {
+			stack.push(upright);
+		}
+		if (x > 0 && y < psy - 1 && !visited[downleft]) {
+			stack.push(downleft);
+		}
+		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
+			stack.push(downright);
+		}
+
+		total += calc_area_at_point_2x2x2(
+			binimg, ccl,
+			sx, sy, sz,
+			cur, pos, normal, anisotropy,
+			pts, projections, inv_projections,
+			plane_visualization
+		);
+	}
+
+	return total;
 }
 
 float cross_sectional_area_helper(
