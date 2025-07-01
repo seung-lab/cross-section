@@ -343,7 +343,7 @@ float area_of_poly(
 	}
 }
 
-void check_intersections_2x2x2(
+uint16_t check_intersections_2x2x2(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
 	const Vec3& pos, const Vec3& normal, 
@@ -357,7 +357,7 @@ void check_intersections_2x2x2(
 		Vec3(0, 2, 2), // 3
 		Vec3(2, 0, 0), // 4
 		Vec3(2, 0, 2), // 5
-		Vec3(2, 1, 0), // 6
+		Vec3(2, 2, 0), // 6
 		Vec3(2, 2, 2) // 7
 	};
 
@@ -371,24 +371,25 @@ void check_intersections_2x2x2(
 
 	pts.clear();
 
-	Vec3 minpt(x,y,z);
+	Vec3 centerpt(x,y,z);
+	centerpt += 0.5;
 
 	// for testing the 2x2x2 field, we need to move the point
 	// to the center of the grid. then if the distance to the plane is
 	// > sqrt(3), it's not intersecting.
-	minpt += 0.5; 
 
 	constexpr float epsilon = 2e-5;
 	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
 
-	float dist_to_plane = std::abs((minpt-pos).dot(normal));
+	float dist_to_plane = std::abs((centerpt-pos).dot(normal));
 	// if the distance to the plane is greater than sqrt(3)/2
 	// then the plane is not intersecting at all.
 	if (dist_to_plane > max_dist_to_plane) { 
-		return;
+		return 0;
 	}
 
-	minpt -= 1.0; // move it from the center to the actual minpt now
+	Vec3 minpt(x,y,z);
+	minpt -= 0.5;
 
 	Vec3 pos2 = pos - minpt;
 
@@ -412,9 +413,16 @@ void check_intersections_2x2x2(
 		? 4
 		: 6;
 
-	constexpr float bound = 0.5 + epsilon;
+	constexpr float bound = 1 + epsilon;
 
 	Vec3 corner;
+	uint16_t edges = 0;
+
+	// edges is marked with
+	// iteration order (i) as:
+	// 000x, 022x, 202x, 220x
+	// 000y, 022y, 202y, 220y
+	// 000, 022z, 202z, 220z
 
 	for (int i = 0; i < 12; i++) {		
 		float proj = corner_projections[i & 0b11];
@@ -428,16 +436,14 @@ void check_intersections_2x2x2(
 			continue;
 		}
 
-		float proj2 = projections[i >> 2];
-
 		// if traveling parallel to plane but
 		// not on the plane
-		if (proj2 == 0) {
+		if (projections[i >> 2] == 0) {
 			continue;
 		}
 
 		float t = proj * inv_projections[i >> 2];
-		if (std::abs(t) > 1 + epsilon) {
+		if (std::abs(t) > 2 + epsilon) {
 			continue;
 		}
 
@@ -446,28 +452,31 @@ void check_intersections_2x2x2(
 		corner += minpt;
 		Vec3 nearest_pt = corner + pipe * t;
 
-		if (std::abs(nearest_pt.x - x) >= bound) {
+		if (std::abs(nearest_pt.x - centerpt.x) >= bound) {
 			continue;
 		}
-		else if (std::abs(nearest_pt.y - y) >= bound) {
+		else if (std::abs(nearest_pt.y - centerpt.y) >= bound) {
 			continue;
 		}
-		else if (std::abs(nearest_pt.z - z) >= bound) {
+		else if (std::abs(nearest_pt.z - centerpt.z) >= bound) {
 			continue;
 		}
 
-		// if t = -1, 0, 1 we're on a corner, which are the only areas where a
+		// if t = -2, 0, 2 we're on a corner, which are the only areas where a
 		// duplicate vertex is possible.
-		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-1) < epsilon);
+		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-2) < epsilon);
 
 		if (!iscorner || !inlist(nearest_pt)) {
 			pts.push_back(nearest_pt);
+			edges |= (1 << i);
 
 			if (pts.size() >= max_pts) {
 				break;
 			}
 		}
 	}
+
+	return edges;
 }
 
 void check_intersections(
