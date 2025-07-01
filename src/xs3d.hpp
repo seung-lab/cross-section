@@ -479,7 +479,7 @@ uint16_t check_intersections_2x2x2(
 	return edges;
 }
 
-void check_intersections(
+void check_intersections_1x1x1(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
 	const Vec3& pos, const Vec3& normal, 
@@ -601,7 +601,7 @@ void check_intersections(
 	}
 }
 
-float calc_area_at_point_2x2x2(
+auto calc_area_at_point_2x2x2(
 	const uint8_t* binimg,
 	std::vector<bool>& ccl,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -615,9 +615,9 @@ float calc_area_at_point_2x2x2(
 
 	const uint64_t sxy = sx * sy;
 
-	const uint64_t x = static_cast<uint64_t>(delta.x) & ~1;
-	const uint64_t y = static_cast<uint64_t>(delta.y) & ~1;
-	const uint64_t z = static_cast<uint64_t>(delta.z) & ~1;
+	const uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
+	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
+	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
 
 	const uint64_t loc = x + sx * (y + sy * z);
 
@@ -643,7 +643,7 @@ float calc_area_at_point_2x2x2(
 
 	uint8_t num_set = popcount(cube);
 
-	auto areafn = [&]() {
+	auto areafn2 = [&]() {
 		check_intersections_2x2x2(
 			pts, 
 			x, y, z,
@@ -669,63 +669,81 @@ float calc_area_at_point_2x2x2(
 		}
 	};
 
+	auto areafn1 = [&](uint64_t ox, uint64_t oy, uint64_t oz) {
+		check_intersections_1x1x1(
+			pts, 
+			x+ox, y+oy, z+oz,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		const auto size = pts.size();
+
+		float area = 0.0;
+
+		if (size < 3) {
+			return 0.0;
+		}
+		else if (size == 3) {
+			return area_of_triangle(pts, anisotropy);
+		}
+		else if (size == 4) { 
+			return area_of_quad(pts, anisotropy);
+		}
+		else { // 5, 6
+			return area_of_poly(pts, normal, anisotropy);
+		}
+	};
+
+	auto areafn1_idx = [&](uint8_t idx) {
+		int oz = idx >> 2;
+		int oy = (idx - (oz << 2)) >> 1;
+		int ox = (idx - (oz << 2) - (oy << 1));
+		return areafn1(ox,oy,oz);
+	};
+
+	float area = 0;
+	int idx = 0;
+
 	if (num_set == 0) {
-		return 0.0;
+		area = 0.0;
 	}
 	else if (num_set == 8) {
-		return areafn();
+		area = areafn2();
 	}
-	else if (num_set == 7) {
-		areafn2x2 - 1
-		// 8 if statements
-		ffs(~cube) -> xyz indices
+	else if (num_set <= 7) {
+		area = areafn2();
+		area -= areafn1_idx(ffs(~cube));
 	}
 	else if (num_set == 6) {
-		areafn2x2 - 2
-		// 8c2 if statements == 28
+		area = areafn2();
+		idx = ffs(~cube);
+		area -= areafn1_idx(idx);
+		cube |= (1 << idx);
+		idx = ffs(~cube);
+		area -= areafn1_idx(idx);
 	}
 	else if (num_set == 5) {
-		// 8c3 == 56 or a triple for loop
+		area = areafn2();
+		idx = ffs(~cube);
+		area -= areafn1_idx(idx);
+		cube |= (1 << idx);
+		idx = ffs(~cube);
+		area -= areafn1_idx(idx);
+		cube |= (1 << idx);
+		idx = ffs(~cube);
+		area -= areafn1_idx(idx);
 	}
-	else if (num_set == 4) {
-		// maybe try to detect a few special cases that are faster?
-		// 8c4 == 70 if statements or a triple for loop
-	}
-	else if (num_set <= 3) { // triple for loop
-		// 8c3 == 56 or a triple for loop
-	} 
-	else if (num_set == 2) {
-		+ 2
-		// 8c2 if statements == 28
-	}
-	else if (num_set == 1) {
-		// 8 if statements, jump table?
-		+ 1
-	}
-
-
-
-
-				if (!binimg[loc]) {
-					continue;
-				}
-
-				if (ccl[loc] == 0) {
-					ccl[loc] = 1;
-					
-					
-
-					subtotal += area;
-
-					if (plane_visualization != NULL && area > 0.0) {
-						plane_visualization[loc] = area;
-					}
-				}
-			}
+	else {
+		while (num_set) {
+			idx = ffs(~cube);
+			area += areafn1_idx(idx);
+			cube |= (1 << idx);
+			num_set--;
 		}
 	}
 
-	return subtotal;
+	return area;
 }
 
 
