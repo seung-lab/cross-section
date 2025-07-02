@@ -601,6 +601,27 @@ void check_intersections_1x1x1(
 	}
 }
 
+float points_to_area(
+	const Vec3& pts, 
+	const Vec3& anisotropy, 
+	const Vec3& normal
+) {
+	const auto size = pts.size();
+
+	if (size < 3) {
+		return 0.0;
+	}
+	else if (size == 3) {
+		return area_of_triangle(pts, anisotropy);
+	}
+	else if (size == 4) { 
+		return area_of_quad(pts, anisotropy);
+	}
+	else { // 5, 6
+		return area_of_poly(pts, normal, anisotropy);
+	}
+}
+
 auto calc_area_at_point_2x2x2(
 	const uint8_t* binimg,
 	std::vector<bool>& ccl,
@@ -621,23 +642,6 @@ auto calc_area_at_point_2x2x2(
 
 	const uint64_t loc = x + sx * (y + sy * z);
 
-	auto pts2area = [normal,anisotropy](const Vec3& pts) {
-		const auto size = pts.size();
-
-		if (size < 3) {
-			return 0.0;
-		}
-		else if (size == 3) {
-			return area_of_triangle(pts, anisotropy);
-		}
-		else if (size == 4) { 
-			return area_of_quad(pts, anisotropy);
-		}
-		else { // 5, 6
-			return area_of_poly(pts, normal, anisotropy);
-		}
-	};
-
 	auto areafn2 = [&]() {
 		check_intersections_2x2x2(
 			pts, 
@@ -646,7 +650,7 @@ auto calc_area_at_point_2x2x2(
 			projections, inv_projections
 		);
 
-		return pts2area(pts);
+		return points_to_area(pts, anisotropy, normal);
 	};
 
 	auto areafn1 = [&](uint8_t idx) {
@@ -661,7 +665,7 @@ auto calc_area_at_point_2x2x2(
 			projections, inv_projections
 		);
 
-		return pts2area(pts);
+		return points_to_area(pts, anisotropy, normal);
 	};
 
 	uint8_t cube = (
@@ -751,7 +755,7 @@ float calc_area_at_point(
 				if (ccl[loc] == 0) {
 					ccl[loc] = 1;
 					
-					check_intersections(
+					check_intersections_1x1x1(
 						pts, 
 						static_cast<uint64_t>(delta.x), 
 						static_cast<uint64_t>(delta.y), 
@@ -760,6 +764,7 @@ float calc_area_at_point(
 						projections, inv_projections
 					);
 
+<<<<<<< HEAD
 					const auto size = pts.size();
 
 					float area = 0.0;
@@ -777,6 +782,9 @@ float calc_area_at_point(
 					else { // 4, 5, 6
 						area = area_of_poly(pts, normal, anisotropy);
 					}
+=======
+					float area = points_to_area(pts, anisotropy, normal);
+>>>>>>> 5de85be (refactor: move points_to_area into its own function)
 
 					subtotal += area;
 
