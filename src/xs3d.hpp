@@ -621,6 +621,49 @@ auto calc_area_at_point_2x2x2(
 
 	const uint64_t loc = x + sx * (y + sy * z);
 
+	auto pts2area = [normal,anisotropy](const Vec3& pts) {
+		const auto size = pts.size();
+
+		if (size < 3) {
+			return 0.0;
+		}
+		else if (size == 3) {
+			return area_of_triangle(pts, anisotropy);
+		}
+		else if (size == 4) { 
+			return area_of_quad(pts, anisotropy);
+		}
+		else { // 5, 6
+			return area_of_poly(pts, normal, anisotropy);
+		}
+	};
+
+	auto areafn2 = [&]() {
+		check_intersections_2x2x2(
+			pts, 
+			x, y, z,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		return pts2area(pts);
+	};
+
+	auto areafn1 = [&](uint8_t idx) {
+		const uint64_t oz = idx >> 2;
+		const uint64_t oy = (idx - (oz << 2)) >> 1;
+		const uint64_t ox = (idx - (oz << 2) - (oy << 1));
+
+		check_intersections_1x1x1(
+			pts, 
+			x+ox, y+oy, z+oz,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		return pts2area(pts);
+	};
+
 	uint8_t cube = (
 		(binimg[loc] > 0)
 		| ((x < sx - 1) && (binimg[loc+1] > 0) << 1)
@@ -632,114 +675,22 @@ auto calc_area_at_point_2x2x2(
 		| ((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0) << 7)
 	);
 
-	ccl[loc] = true;
-	ccl[loc+1] = true;
-	ccl[loc+sx] = true;
-	ccl[loc+sx+1] = true;
-	ccl[loc+sxy] = true;
-	ccl[loc+sxy+1] = true;
-	ccl[loc+sxy+sx] = true;
-	ccl[loc+sxy+sx+1] = true;
-
-	uint8_t num_set = popcount(cube);
-
-	auto areafn2 = [&]() {
-		check_intersections_2x2x2(
-			pts, 
-			x, y, z,
-			pos, normal, 
-			projections, inv_projections
-		);
-
-		const auto size = pts.size();
-
-		float area = 0.0;
-
-		if (size < 3) {
-			return 0.0;
-		}
-		else if (size == 3) {
-			return area_of_triangle(pts, anisotropy);
-		}
-		else if (size == 4) { 
-			return area_of_quad(pts, anisotropy);
-		}
-		else { // 5, 6
-			return area_of_poly(pts, normal, anisotropy);
-		}
-	};
-
-	auto areafn1 = [&](uint64_t ox, uint64_t oy, uint64_t oz) {
-		check_intersections_1x1x1(
-			pts, 
-			x+ox, y+oy, z+oz,
-			pos, normal, 
-			projections, inv_projections
-		);
-
-		const auto size = pts.size();
-
-		float area = 0.0;
-
-		if (size < 3) {
-			return 0.0;
-		}
-		else if (size == 3) {
-			return area_of_triangle(pts, anisotropy);
-		}
-		else if (size == 4) { 
-			return area_of_quad(pts, anisotropy);
-		}
-		else { // 5, 6
-			return area_of_poly(pts, normal, anisotropy);
-		}
-	};
-
-	auto areafn1_idx = [&](uint8_t idx) {
-		int oz = idx >> 2;
-		int oy = (idx - (oz << 2)) >> 1;
-		int ox = (idx - (oz << 2) - (oy << 1));
-		return areafn1(ox,oy,oz);
-	};
-
 	float area = 0;
 	int idx = 0;
 
-	if (num_set == 0) {
-		area = 0.0;
-	}
-	else if (num_set == 8) {
+	if (popcount(cube) >= 5) {
 		area = areafn2();
-	}
-	else if (num_set <= 7) {
-		area = areafn2();
-		area -= areafn1_idx(ffs(~cube));
-	}
-	else if (num_set == 6) {
-		area = areafn2();
-		idx = ffs(~cube);
-		area -= areafn1_idx(idx);
-		cube |= (1 << idx);
-		idx = ffs(~cube);
-		area -= areafn1_idx(idx);
-	}
-	else if (num_set == 5) {
-		area = areafn2();
-		idx = ffs(~cube);
-		area -= areafn1_idx(idx);
-		cube |= (1 << idx);
-		idx = ffs(~cube);
-		area -= areafn1_idx(idx);
-		cube |= (1 << idx);
-		idx = ffs(~cube);
-		area -= areafn1_idx(idx);
+		while (~cube) {
+			idx = ffs(~cube);
+			area -= areafn1(idx);
+			cube |= (1 << idx);
+		}
 	}
 	else {
-		while (num_set) {
-			idx = ffs(~cube);
-			area += areafn1_idx(idx);
-			cube |= (1 << idx);
-			num_set--;
+		while (cube) {
+			idx = ffs(cube);
+			area += areafn1(idx);
+			cube = cube & ~(1 << idx);
 		}
 	}
 
