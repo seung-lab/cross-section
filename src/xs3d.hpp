@@ -640,8 +640,6 @@ auto calc_area_at_point_2x2x2(
 	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
 	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
 
-	const uint64_t loc = x + sx * (y + sy * z);
-
 	auto areafn2 = [&]() {
 		check_intersections_2x2x2(
 			pts, 
@@ -668,6 +666,8 @@ auto calc_area_at_point_2x2x2(
 		return points_to_area(pts, anisotropy, normal);
 	};
 
+	const uint64_t loc = x + sx * (y + sy * z);
+
 	uint8_t cube = (
 		(binimg[loc] > 0)
 		| ((x < sx - 1) && (binimg[loc+1] > 0) << 1)
@@ -680,7 +680,7 @@ auto calc_area_at_point_2x2x2(
 	);
 
 	float area = 0;
-	int idx = 0;
+	uint8_t idx = 0;
 
 	if (popcount(cube) >= 5) {
 		area = areafn2();
