@@ -687,13 +687,13 @@ float calc_area_at_point_2x2x2(
 
 	uint8_t cube = (
 		(binimg[loc] > 0)
-		| ((x < sx - 1) && (binimg[loc+1] > 0) << 1)
-		| ((y < sy - 1) && (binimg[loc+sx] > 0) << 2)
-		| ((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0) << 3)
-		| ((z < sz - 1) && (binimg[loc+sxy] > 0) << 4)
-		| ((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0) << 5)
-		| ((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0) << 6)
-		| ((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0) << 7)
+		| (((x < sx - 1) && (binimg[loc+1] > 0)) << 1)
+		| (((y < sy - 1) && (binimg[loc+sx] > 0)) << 2)
+		| (((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0)) << 3)
+		| (((z < sz - 1) && (binimg[loc+sxy] > 0)) << 4)
+		| (((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0)) << 5)
+		| (((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0)) << 6)
+		| (((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0)) << 7)
 	);
 
 	float area = 0;
@@ -704,14 +704,14 @@ float calc_area_at_point_2x2x2(
 		if (area == 0) {
 			return area;
 		}
-		while (~cube) {
+		while (static_cast<uint8_t>(~cube)) {
 			idx = ffs(~cube) - 1;
 			area -= areafn1(idx);
 			cube |= (1 << idx);
 		}
 	}
 	else {
-		while (cube) {
+		while (static_cast<uint8_t>(cube)) {
 			idx = ffs(cube) - 1;
 			area += areafn1(idx);
 			cube = cube & ~(1 << idx);
