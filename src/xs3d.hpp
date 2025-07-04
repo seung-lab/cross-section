@@ -155,34 +155,6 @@ float area_of_triangle(
 	return v3.norm() * 0.5;
 }
 
-// area of a quad is ||v1 x v2||
-// but there are two situations:
-// in the first, you have the vectors
-// representing the length and width
-// of the rectangle, which is the usual
-// case and the defintion of the cross product
-// as a determinant -> area of a paralllepiped 
-// works. 
-// The second situation is a side and a hypotenuse
-// of the rectangle. In that case, let v be a side and
-// h be the hypotenuse. ||v x h|| / 2 = area of triangle
-// However, the other triangle has the same formula, and
-// 2 * || v x h || / 2 = || v x h ||
-
-// so weirdly, you can just pick two vectors 
-// and cross them!
-float area_of_quad(
-	const std::vector<Vec3>& pts, 
-	const Vec3& anisotropy
-) {
-	Vec3 v1 = pts[1] - pts[0];
-	v1 *= anisotropy;
-	Vec3 v2 = pts[2] - pts[0];
-	v2 *= anisotropy;
-	
-	return v1.cross(v2).norm();
-}
-
 #define CMP_SWAP(x,y) \
 	if (values[x] > values[y]) {\
 		std::swap(values[x], values[y]);\
@@ -193,6 +165,36 @@ float area_of_quad(
 	if (values[x] > values[y]) {\
 		std::swap(vecs[x], vecs[y]);\
 	}
+
+
+/*
+https://bertdobbelaere.github.io/sorting_networks.html
+Optimal sorting network:
+[(0,2),(1,3)]
+[(0,1),(2,3)]
+[(1,2)]
+*/
+void sorting_network_4(
+	std::vector<Vec3>& vecs,
+	const Vec3& prime_spoke,
+	const Vec3& basis
+) {
+	static thread_local std::array<float, 4> values = {};
+
+	for (int i = 0; i < 4; i++) {
+		Vec3& vec = vecs[i];
+		float projection = vec.dot(prime_spoke) / vec.norm();
+		values[i] = (vec.dot(basis) < 0) 
+			? (projection - 1) 
+			: (1 - projection);
+	}
+
+	CMP_SWAP(0,2)
+	CMP_SWAP(1,3)
+	CMP_SWAP(0,1)
+	CMP_SWAP(2,3)
+	CMP_SWAP_FAST(1,2)
+}
 
 /*
 https://bertdobbelaere.github.io/sorting_networks.html
@@ -313,7 +315,10 @@ float area_of_poly(
 		return a_val < b_val;
 	};
 
-	if (N_pts == 5) {
+	if (N_pts == 4) {
+		sorting_network_4(spokes, prime_spoke, basis);
+	}
+	else if (N_pts == 5) {
 		sorting_network_5(spokes, prime_spoke, basis);
 	}
 	else if (N_pts == 6) {
@@ -534,10 +539,7 @@ float calc_area_at_point(
 					else if (size == 3) {
 						area = area_of_triangle(pts, anisotropy);
 					}
-					else if (size == 4) { 
-						area = area_of_quad(pts, anisotropy);
-					}
-					else { // 5, 6
+					else { // 4, 5, 6
 						area = area_of_poly(pts, normal, anisotropy);
 					}
 
