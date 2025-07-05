@@ -654,7 +654,7 @@ float points_to_area(
 }
 
 float calc_area_at_point_2x2x2(
-	const uint8_t* binimg,
+	uint8_t cube,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
 	const Vec3& normal, const Vec3& anisotropy,
@@ -662,9 +662,6 @@ float calc_area_at_point_2x2x2(
 	const std::vector<float>& projections, 
 	const std::vector<float>& inv_projections
 ) {
-
-	const uint64_t sxy = sx * sy;
-
 	const uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
 	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
 	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
@@ -711,19 +708,6 @@ float calc_area_at_point_2x2x2(
 
 		return points_to_area(pts, anisotropy, normal);
 	};
-
-	const uint64_t loc = x + sx * (y + sy * z);
-
-	uint8_t cube = (
-		(binimg[loc] > 0)
-		| (((x < sx - 1) && (binimg[loc+1] > 0)) << 1)
-		| (((y < sy - 1) && (binimg[loc+sx] > 0)) << 2)
-		| (((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0)) << 3)
-		| (((z < sz - 1) && (binimg[loc+sxy] > 0)) << 4)
-		| (((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0)) << 5)
-		| (((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0)) << 6)
-		| (((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0)) << 7)
-	);
 
 	float area = 0;
 	uint8_t idx = 0;
@@ -821,6 +805,217 @@ float calc_area_at_point(
 					if (plane_visualization != NULL && area > 0.0) {
 						plane_visualization[loc] = area;
 					}
+				}
+			}
+		}
+	}
+
+	return subtotal;
+}
+
+uint8_t compute_cube(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const uint64_t x, const uint64_t y, const uint64_t z
+) {
+	const uint64_t sxy = sx * sy;
+	const uint64_t loc = x + sx * (y + sy * z);
+
+	return static_cast<uint8_t>(
+		(binimg[loc] > 0)
+		| (((x < sx - 1) && (binimg[loc+1] > 0)) << 1)
+		| (((y < sy - 1) && (binimg[loc+sx] > 0)) << 2)
+		| (((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0)) << 3)
+		| (((z < sz - 1) && (binimg[loc+sxy] > 0)) << 4)
+		| (((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0)) << 5)
+		| (((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0)) << 6)
+		| (((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0)) << 7)
+	);
+}
+
+bool is_26_connected(
+	const uint8_t candidate, const uint8_t center,
+	const uint64_t x, const uint64_t y, const uint64_t z
+) {
+	if (x < 0) {
+		if (y < 0) {
+			if (z < 0) {
+				return (candidate & 0b10000000) && (center & 0b00000001);
+			}
+			else if (z == 0) {
+				return (candidate & 0b10001000) && (center & 0b00010001);
+			}
+			else {
+				return (candidate & 0b00001000) && (center & 0b00010000);
+			}
+		}
+		else if (y == 0) {
+			if (z < 0) {
+				return (candidate & 0b10100000) && (center & 0b00000101);
+			}
+			else if (z == 0) {
+				return (candidate & 0b10101010) && (center & 0b01010101);
+			}
+			else {
+				return (candidate & 0b00001010) && (center & 0b01010000);
+			}
+		}
+		else {
+			if (z < 0) {
+				return (candidate & 0b00010000) && (center & 0b00000100);
+			}
+			else if (z == 0) {
+				return (candidate & 0b00100010) && (center & 0b01000100);
+			}
+			else {
+				return (candidate & 0b00000010) && (center & 0b01000000);
+			}
+		}
+	}
+	else if (x == 0) {
+		if (y < 0) {
+			if (z < 0) {
+				return (candidate & 0b11000000) && (center & 0b00000011);
+			}
+			else if (z == 0) {
+				return (candidate & 0b11001100) && (center & 0b00110011);
+			}
+			else {
+				return (candidate & 0b00001100) && (center & 0b00110000);
+			}
+		}
+		else if (y == 0) {
+			if (z < 0) {
+				return (candidate & 0b11110000) && (center & 0b00001111);
+			}
+			else if (z == 0) {
+				return true;
+			}
+			else {
+				return (candidate & 0b00001111) && (center & 0b11110000);
+			}
+		}
+		else {
+			if (z < 0) {
+				return (candidate & 0b00110000) && (center & 0b00001100);
+			}
+			else if (z == 0) {
+				return (candidate & 0b00110011) && (center & 0b11001100);
+			}
+			else {
+				return (candidate & 0b00000011) && (center & 0b11000000);
+			}
+		}
+	}
+	else {
+		if (y < 0) {
+			if (z < 0) {
+				return (candidate & 0b01000000) && (center & 0b00000010);
+			}
+			else if (z == 0) {
+				return (candidate & 0b01000100) && (center & 0b00010010);
+			}
+			else {
+				return (candidate & 0b00000100) && (center & 0b00010000);
+			}
+		}
+		else if (y == 0) {
+			if (z < 0) {
+				return (candidate & 0b01010000) && (center & 0b00001010);
+			}
+			else if (z == 0) {
+				return (candidate & 0b01010101) && (center & 0b10101010);
+			}
+			else {
+				return (candidate & 0b00000101) && (center & 0b10100000);
+			}
+		}
+		else {
+			if (z < 0) {
+				return (candidate & 0b00010000) && (center & 0b00001000);
+			}
+			else if (z == 0) {
+				return (candidate & 0b00010001) && (center & 0b10001000);
+			}
+			else {
+				return (candidate & 0b00000001) && (center & 0b10000000);
+			}
+		}
+	}
+}
+
+float robust_calc_area_at_point_2x2x2(
+	const uint8_t* binimg,
+	std::vector<bool>& ccl,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+
+	uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
+	uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
+	uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
+
+	float subtotal = 0.0;
+
+	float xs = (cur.x - 2) >= 0 ? -2 : 0;
+	float ys = (cur.y - 2) >= 0 ? -2 : 0;
+	float zs = (cur.z - 2) >= 0 ? -2 : 0;
+
+	float xe = (cur.x + 2) < sx ? 2 : 0;
+	float ye = (cur.y + 2) < sy ? 2 : 0;
+	float ze = (cur.z + 2) < sz ? 2 : 0;
+	
+	// only need to check around the current voxel if
+	// there's a possibility that there is a gap due
+	// to basis vector motion. If the normal is axis
+	// aligned to x, y, or z, there will be no gap.
+	if (normal.is_axis_aligned()) {
+		xs = 0;
+		ys = 0;
+		zs = 0;
+
+		xe = 0;
+		ye = 0;
+		ze = 0;		
+	}
+
+	const uint8_t center = compute_cube(binimg, sx, sy, sz, x, y, z);
+
+	for (int64_t zi = zs; zi <= ze; zi += 2) {
+		for (int64_t yi = ys; yi <= ye; yi += 2) {
+			for (int64_t xi = xs; xi <= xe; xi += 2) {
+				
+				Vec3 delta(xi,yi,zi);
+				delta += cur;
+
+				const uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				);
+
+				const uint64_t ccl_loc =  (static_cast<uint64_t>(delta.x) >> 1) + ((sx+1) >> 1) * (
+					(static_cast<uint64_t>(delta.y) >> 1) + ((sy+1) >> 1) * (static_cast<uint64_t>(delta.z) >> 1)
+				);
+
+				if (!binimg[loc] || ccl[ccl_loc]) {
+					continue;
+				}
+				
+				ccl[ccl_loc] = true;
+					
+				uint8_t candidate = compute_cube(binimg, sx, sy, sz, x + xi, y + yi, z + zi);
+
+				if (is_26_connected(candidate, center, xi, yi, zi)) {
+					subtotal += calc_area_at_point_2x2x2(
+						candidate,
+						sx, sy, sz,
+						delta, pos, normal, anisotropy,
+						pts, 
+						projections, inv_projections
+					);
 				}
 			}
 		}
@@ -961,20 +1156,12 @@ float cross_sectional_area_helper_2x2x2(
 			stack.push(downright);
 		}
 
-		const uint64_t ccl_loc =  (static_cast<uint64_t>(cur.x) >> 1) + ((sx+1) >> 1) * (
-			(static_cast<uint64_t>(cur.y) >> 1) + ((sy+1) >> 1) * (static_cast<uint64_t>(cur.z) >> 1)
+		total += robust_calc_area_at_point_2x2x2(
+			binimg, ccl,
+			sx, sy, sz,
+			cur, pos, normal, anisotropy,
+			pts, projections, inv_projections
 		);
-
-		if (!ccl[ccl_loc]) {
-			total += calc_area_at_point_2x2x2(
-				binimg,
-				sx, sy, sz,
-				cur, pos, normal, anisotropy,
-				pts, 
-				projections, inv_projections
-			);
-			ccl[ccl_loc] = true;
-		}
 	}
 
 	return total;
