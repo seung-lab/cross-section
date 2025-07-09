@@ -166,6 +166,29 @@ float area_of_triangle(
 		std::swap(vecs[x], vecs[y]);\
 	}
 
+template <size_t N>
+inline void calculate_sort_projections(
+	std::array<float, N>& values,
+	std::vector<Vec3>& vecs,
+	const Vec3& prime_spoke,
+	const Vec3& basis
+) {
+	#pragma unroll
+	for (uint64_t i = 0; i < N; i++) {
+		Vec3& vec = vecs[i];
+		float projection = vec.dot(prime_spoke) / vec.norm();
+		values[i] = (vec.dot(basis) < 0) 
+			? (projection - 1) 
+			: (1 - projection);
+	}
+}
+
+template <size_t N>
+void sorting_network(
+	std::vector<Vec3>& vecs,
+	const Vec3& prime_spoke,
+	const Vec3& basis
+);
 
 /*
 https://bertdobbelaere.github.io/sorting_networks.html
@@ -174,20 +197,14 @@ Optimal sorting network:
 [(0,1),(2,3)]
 [(1,2)]
 */
-void sorting_network_4(
+template <>
+void sorting_network<4>(
 	std::vector<Vec3>& vecs,
 	const Vec3& prime_spoke,
 	const Vec3& basis
 ) {
 	static thread_local std::array<float, 4> values = {};
-
-	for (int i = 0; i < 4; i++) {
-		Vec3& vec = vecs[i];
-		float projection = vec.dot(prime_spoke) / vec.norm();
-		values[i] = (vec.dot(basis) < 0) 
-			? (projection - 1) 
-			: (1 - projection);
-	}
+	calculate_sort_projections<4>(values, vecs, prime_spoke, basis);
 
 	CMP_SWAP(0,2)
 	CMP_SWAP(1,3)
@@ -205,20 +222,14 @@ Optimal sorting network:
 [(1,2),(3,4)]
 [(2,3)] 
 */
-void sorting_network_5(
+template <>
+void sorting_network<5>(
 	std::vector<Vec3>& vecs,
 	const Vec3& prime_spoke,
 	const Vec3& basis
 ) {
 	static thread_local std::array<float, 5> values = {};
-
-	for (int i = 0; i < 5; i++) {
-		Vec3& vec = vecs[i];
-		float projection = vec.dot(prime_spoke) / vec.norm();
-		values[i] = (vec.dot(basis) < 0) 
-			? (projection - 1) 
-			: (1 - projection);
-	}
+	calculate_sort_projections<5>(values, vecs, prime_spoke, basis);
 
 	CMP_SWAP(0,3)
 	CMP_SWAP(1,4)
@@ -240,20 +251,14 @@ Optimal sorting network:
 [(0,1),(2,3),(4,5)]
 [(1,2),(3,4)]
 */
-void sorting_network_6(
+template <>
+void sorting_network<6>(
 	std::vector<Vec3>& vecs,
 	const Vec3& prime_spoke,
 	const Vec3& basis
 ) {
 	static thread_local std::array<float, 6> values = {};
-
-	for (int i = 0; i < 6; i++) {
-		Vec3& vec = vecs[i];
-		float projection = vec.dot(prime_spoke) / vec.norm();
-		values[i] = (vec.dot(basis) < 0) 
-			? (projection - 1) 
-			: (1 - projection);
-	}
+	calculate_sort_projections<6>(values, vecs, prime_spoke, basis);
 
 	CMP_SWAP(0,5)
 	CMP_SWAP(1,3)
@@ -270,6 +275,26 @@ void sorting_network_6(
 }
 
 #undef CMP_SWAP
+
+template <size_t N>
+float spokes_to_area(
+	std::vector<Vec3>& spokes,
+	const Vec3& anisotropy
+) {
+	#pragma unroll
+	for (uint64_t i = 0; i < N; i++) {
+		spokes[i] *= anisotropy;
+	}
+
+	float area = 0.0;
+	#pragma unroll
+	for (uint64_t i = 0; i < N - 1; i++) {
+		area += spokes[i].cross(spokes[i+1]).norm();
+	}
+	area += spokes[0].cross(spokes[N - 1]).norm();
+
+	return area * 0.5;
+}
 
 float area_of_poly(
 	const std::vector<Vec3>& pts, 
@@ -298,47 +323,18 @@ float area_of_poly(
 	Vec3 basis = prime_spoke.cross(normal);
 	basis /= basis.norm();
 
-	// acos is expensive, but we just need a number that
-	// increments from 0 to a maximum value at 180deg so
-	// just do 1 - cos, which will be 0 at 0deg and 2 at 180deg
-	auto angularOrder = [&](const Vec3& a, const Vec3& b) {
-		float a_val = 1 - (a.dot(prime_spoke) / a.norm());
-		if (a.dot(basis) < 0) {
-			a_val = -a_val;
-		}
-
-		float b_val = 1 - (b.dot(prime_spoke) / b.norm());
-		if (b.dot(basis) < 0) {
-			b_val = -b_val;
-		}
-
-		return a_val < b_val;
-	};
-
 	if (N_pts == 4) {
-		sorting_network_4(spokes, prime_spoke, basis);
+		sorting_network<4>(spokes, prime_spoke, basis);
+		return spokes_to_area<4>(spokes, anisotropy);
 	}
 	else if (N_pts == 5) {
-		sorting_network_5(spokes, prime_spoke, basis);
-	}
-	else if (N_pts == 6) {
-		sorting_network_6(spokes, prime_spoke, basis);
+		sorting_network<5>(spokes, prime_spoke, basis);
+		return spokes_to_area<5>(spokes, anisotropy);
 	}
 	else {
-		std::sort(spokes.begin(), spokes.end(), angularOrder);
+		sorting_network<6>(spokes, prime_spoke, basis);
+		return spokes_to_area<6>(spokes, anisotropy);
 	}
-
-	for (Vec3& spoke : spokes) {
-		spoke *= anisotropy;
-	}
-
-	float area = 0.0;
-	for (uint64_t i = 0; i < N_pts - 1; i++) {
-		area += spokes[i].cross(spokes[i+1]).norm();
-	}
-	area += spokes[0].cross(spokes[N_pts - 1]).norm();
-
-	return area * 0.5;
 }
 
 const Vec3 c[8] = {
