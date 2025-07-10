@@ -1007,7 +1007,7 @@ float robust_calc_area_at_point_2x2x2(
 					
 				uint8_t candidate = compute_cube(binimg, sx, sy, sz, x + xi, y + yi, z + zi);
 
-				if (is_26_connected(candidate, center, xi, yi, zi)) {
+				if (is_26_connected(center, candidate, xi, yi, zi)) {
 					subtotal += calc_area_at_point_2x2x2(
 						candidate,
 						sx, sy, sz,
