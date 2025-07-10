@@ -23,7 +23,7 @@ def _nearest_point(
   return (p_x, p_y)
 
 def _get_ccl(
-  binimg:npt.NDArray[np.bool], 
+  binimg:npt.NDArray[np.bool_], 
   pos:POINT_T, 
   vec:VECTOR_T,
 ) -> np.ndarray:
@@ -71,7 +71,7 @@ def _get_ccl(
   return cc3d.connected_components(ccl, connectivity=8)
 
 def cross_sectional_area_2d(
-  binimg:npt.NDArray[np.bool], 
+  binimg:npt.NDArray[np.bool_], 
   pos:POINT_T, 
   vec:VECTOR_T, 
   anisotropy:VECTOR_T = ( 1.0, 1.0 ),

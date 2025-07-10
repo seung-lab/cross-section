@@ -9,7 +9,7 @@ import numpy.typing as npt
 
 
 def cross_sectional_area(
-  binimg:npt.NDArray[np.bool],
+  binimg:npt.NDArray[np.bool_],
   pos:POINT_T,
   normal:VECTOR_T,
   anisotropy:Optional[VECTOR_T] = None,
@@ -77,7 +77,7 @@ def cross_sectional_area(
     return area
 
 def cross_section(
-  binimg:npt.NDArray[np.bool],
+  binimg:npt.NDArray[np.bool_],
   pos:POINT_T,
   normal:VECTOR_T,
   anisotropy:Optional[VECTOR_T] = None,
