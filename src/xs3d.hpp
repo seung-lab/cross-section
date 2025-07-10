@@ -49,6 +49,11 @@ public:
 	Vec3 operator-(const float scalar) const {
 		return Vec3(x - scalar, y - scalar, z - scalar);
 	}
+	void operator-=(const float scalar) {
+		x -= scalar;
+		y -= scalar;
+		z -= scalar;
+	}
 	void operator-=(const Vec3& other) {
 		x -= other.x;
 		y -= other.y;
@@ -602,7 +607,7 @@ void check_intersections_1x1x1(
 }
 
 float points_to_area(
-	const Vec3& pts, 
+	const std::vector<Vec3>& pts, 
 	const Vec3& anisotropy, 
 	const Vec3& normal
 ) {
@@ -614,24 +619,19 @@ float points_to_area(
 	else if (size == 3) {
 		return area_of_triangle(pts, anisotropy);
 	}
-	else if (size == 4) { 
-		return area_of_quad(pts, anisotropy);
-	}
-	else { // 5, 6
+	else { // 4, 5, 6
 		return area_of_poly(pts, normal, anisotropy);
 	}
 }
 
-auto calc_area_at_point_2x2x2(
+float calc_area_at_point_2x2x2(
 	const uint8_t* binimg,
-	std::vector<bool>& ccl,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
 	const Vec3& normal, const Vec3& anisotropy,
 	std::vector<Vec3>& pts, 
 	const std::vector<float>& projections, 
-	const std::vector<float>& inv_projections,
-	float* plane_visualization
+	const std::vector<float>& inv_projections
 ) {
 
 	const uint64_t sxy = sx * sy;
@@ -639,6 +639,23 @@ auto calc_area_at_point_2x2x2(
 	const uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
 	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
 	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
+
+	Vec3 centerpt(x,y,z);
+	centerpt += 0.5;
+
+	// for testing the 2x2x2 field, we need to move the point
+	// to the center of the grid. then if the distance to the plane is
+	// > sqrt(3), it's not intersecting.
+
+	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
+
+	float dist_to_plane = std::abs((centerpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > max_dist_to_plane) { 
+		return 0.0;
+	}
 
 	auto areafn2 = [&]() {
 		check_intersections_2x2x2(
@@ -684,15 +701,18 @@ auto calc_area_at_point_2x2x2(
 
 	if (popcount(cube) >= 5) {
 		area = areafn2();
+		if (area == 0) {
+			return area;
+		}
 		while (~cube) {
-			idx = ffs(~cube);
+			idx = ffs(~cube) - 1;
 			area -= areafn1(idx);
 			cube |= (1 << idx);
 		}
 	}
 	else {
 		while (cube) {
-			idx = ffs(cube);
+			idx = ffs(cube) - 1;
 			area += areafn1(idx);
 			cube = cube & ~(1 << idx);
 		}
@@ -764,27 +784,8 @@ float calc_area_at_point(
 						projections, inv_projections
 					);
 
-<<<<<<< HEAD
-					const auto size = pts.size();
-
-					float area = 0.0;
-
-					if (size < 3) {
-						// no contact, point, or line which have zero area
-						continue;
-					}
-					else if (size > 6) {
-						throw new std::runtime_error("Invalid polygon.");
-					}
-					else if (size == 3) {
-						area = area_of_triangle(pts, anisotropy);
-					}
-					else { // 4, 5, 6
-						area = area_of_poly(pts, normal, anisotropy);
-					}
-=======
+					const auto size = pts.size();	
 					float area = points_to_area(pts, anisotropy, normal);
->>>>>>> 5de85be (refactor: move points_to_area into its own function)
 
 					subtotal += area;
 
@@ -805,11 +806,10 @@ float cross_sectional_area_helper_2x2x2(
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy, // anisotropy
-	uint8_t& contact, 
-	float* plane_visualization
+	uint8_t& contact
 ) {
-	// const uint64_t grid_size = std::max((sx * sy * sz + 7) >> 3, 1);
-	std::vector<bool> ccl(sx * sy * sz);
+	const uint64_t grid_size = std::max((sx * sy * sz + 7) >> 3, static_cast<uint64_t>(1));
+	std::vector<bool> ccl(grid_size);
 
 	// rational approximation of sqrt(3) is 97/56
 	// more reliable behavior across compilers/architectures
@@ -932,13 +932,20 @@ float cross_sectional_area_helper_2x2x2(
 			stack.push(downright);
 		}
 
-		total += calc_area_at_point_2x2x2(
-			binimg, ccl,
-			sx, sy, sz,
-			cur, pos, normal, anisotropy,
-			pts, projections, inv_projections,
-			plane_visualization
+		const uint64_t ccl_loc =  (static_cast<uint64_t>(cur.x) >> 1) + ((sx+1) >> 1) * (
+			(static_cast<uint64_t>(cur.y) >> 1) + ((sy+1) >> 1) * (static_cast<uint64_t>(cur.z) >> 1)
 		);
+
+		if (!ccl[ccl_loc]) {
+			total += calc_area_at_point_2x2x2(
+				binimg,
+				sx, sy, sz,
+				cur, pos, normal, anisotropy,
+				pts, 
+				projections, inv_projections
+			);
+			ccl[ccl_loc] = true;
+		}
 	}
 
 	return total;
@@ -1146,11 +1153,11 @@ float cross_sectional_area(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	return cross_sectional_area_helper(
+	return cross_sectional_area_helper_2x2x2(
 		binimg, 
 		sx, sy, sz, 
 		pos, normal, anisotropy,
-		contact, /*plane_visualization=*/NULL
+		contact
 	);
 }
 
