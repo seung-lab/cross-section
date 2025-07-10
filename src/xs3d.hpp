@@ -834,19 +834,19 @@ uint8_t compute_cube(
 }
 
 bool is_26_connected(
-	const uint8_t candidate, const uint8_t center,
-	const uint64_t x, const uint64_t y, const uint64_t z
+	const uint8_t center, const uint8_t candidate, 
+	const int x, const int y, const int z
 ) {
 	if (x < 0) {
 		if (y < 0) {
 			if (z < 0) {
-				return (candidate & 0b10000000) && (center & 0b00000001);
+				return (candidate & 0b00000100) && (center & 0b00010000);
 			}
 			else if (z == 0) {
-				return (candidate & 0b10001000) && (center & 0b00010001);
+				return (candidate & 0b00010100) && (center & 0b00010001);
 			}
 			else {
-				return (candidate & 0b00001000) && (center & 0b00010000);
+				return (candidate & 0b00010000) && (center & 0b00000001);
 			}
 		}
 		else if (y == 0) {
@@ -862,10 +862,10 @@ bool is_26_connected(
 		}
 		else {
 			if (z < 0) {
-				return (candidate & 0b00010000) && (center & 0b00000100);
+				return (candidate & 0b00100000) && (center & 0b00000100);
 			}
 			else if (z == 0) {
-				return (candidate & 0b00100010) && (center & 0b01000100);
+				return (candidate & 0b00100010) && (center & 0b01000010);
 			}
 			else {
 				return (candidate & 0b00000010) && (center & 0b01000000);
@@ -913,10 +913,10 @@ bool is_26_connected(
 				return (candidate & 0b01000000) && (center & 0b00000010);
 			}
 			else if (z == 0) {
-				return (candidate & 0b01000100) && (center & 0b00010010);
+				return (candidate & 0b01000100) && (center & 0b00100010);
 			}
 			else {
-				return (candidate & 0b00000100) && (center & 0b00010000);
+				return (candidate & 0b00000100) && (center & 0b00100000);
 			}
 		}
 		else if (y == 0) {
@@ -943,7 +943,6 @@ bool is_26_connected(
 		}
 	}
 }
-
 float robust_calc_area_at_point_2x2x2(
 	const uint8_t* binimg,
 	std::vector<bool>& ccl,
