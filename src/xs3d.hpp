@@ -797,9 +797,7 @@ float calc_area_at_point(
 						projections, inv_projections
 					);
 
-					const auto size = pts.size();	
 					float area = points_to_area(pts, anisotropy, normal);
-
 					subtotal += area;
 
 					if (plane_visualization != NULL && area > 0.0) {
