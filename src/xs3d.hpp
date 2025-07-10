@@ -228,6 +228,35 @@ void sorting_network<4>(
 /*
 https://bertdobbelaere.github.io/sorting_networks.html
 Optimal sorting network:
+[(0,2),(1,3)]
+[(0,1),(2,3)]
+[(1,2)]
+*/
+void sorting_network_4(
+	std::vector<Vec3>& vecs,
+	const Vec3& prime_spoke,
+	const Vec3& basis
+) {
+	static thread_local std::array<float, 4> values = {};
+
+	for (int i = 0; i < 4; i++) {
+		Vec3& vec = vecs[i];
+		float projection = vec.dot(prime_spoke) / vec.norm();
+		values[i] = (vec.dot(basis) < 0) 
+			? (projection - 1) 
+			: (1 - projection);
+	}
+
+	CMP_SWAP(0,2)
+	CMP_SWAP(1,3)
+	CMP_SWAP(0,1)
+	CMP_SWAP(2,3)
+	CMP_SWAP_FAST(1,2)
+}
+
+/*
+https://bertdobbelaere.github.io/sorting_networks.html
+Optimal sorting network:
 [(0,3),(1,4)]
 [(0,2),(1,3)]
 [(0,1),(2,4)]
