@@ -315,14 +315,13 @@ float area_of_poly(
 	}
 	centroid /= static_cast<float>(N_pts);
 
-	std::vector<Vec3> spokes;
-	spokes.reserve(N_pts);
+	static thread_local std::vector<Vec3> spokes(6);
 	
-	for (Vec3 pt : pts) {
-		spokes.push_back(pt - centroid);
+	for (size_t i = 0; i < N_pts; i++) {
+		spokes[i] = (pts[i] - centroid);
 	}
 
-	Vec3 prime_spoke = (pts[0] - centroid);
+	Vec3 prime_spoke = spokes[0];
 	prime_spoke /= prime_spoke.norm();
 
 	Vec3 basis = prime_spoke.cross(normal);
