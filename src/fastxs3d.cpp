@@ -170,6 +170,6 @@ auto projection(
 PYBIND11_MODULE(fastxs3d, m) {
 	m.doc() = "Finding cross sectional area in 3D voxelized images."; 
 	m.def("projection", &projection, "Project a cross section of a 3D image onto a 2D plane");
-	m.def("section", &section, "Return a binary image that highlights the voxels contributing area to a cross section.");
+	m.def("section", &section, "Return a floating point image that shows the voxels contributing area to a cross section.");
 	m.def("area", &area, "Find the cross sectional area for a given binary image, point, and normal vector.");
 }
