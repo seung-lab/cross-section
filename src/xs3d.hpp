@@ -1,13 +1,11 @@
 #ifndef __XS3D_HPP__
 #define __XS3D_HPP__
 
-#include <array>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <memory>
 #include <stack>
-#include <string>
 #include <utility>
 #include <vector>
 #include <stdexcept>
@@ -209,10 +207,7 @@ float calc_area_at_point(
 						projections, inv_projections
 					);
 
-					const auto size = pts.size();
-
 					float area = xs3d::area::points_to_area(pts, anisotropy, normal);
-
 					subtotal += area;
 
 					if (plane_visualization != NULL && area > 0.0) {
@@ -435,6 +430,82 @@ float cross_sectional_area(
 		contact, /*plane_visualization=*/NULL
 	);
 }
+
+/* This is a version of the cross sectional area calculation
+ * that checks every single voxel to ensure that all intersected
+ * voxels are included. This is primarily intended for use in
+ * testing the standard faster version for correctness.
+ *
+ * Note that this version does not restrict itself to a single
+ * connected component, so pre-filtering must be performed to 
+ * ensure a match.
+ */
+float cross_sectional_area_slow(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	const float wx, const float wy, const float wz,
+	uint8_t &contact = _dummy_contact
+) {
+
+	const Vec3 pos(px, py, pz);
+	const Vec3 anisotropy(wx, wy, wz);
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	std::vector<Vec3> pts;
+	pts.reserve(6);
+
+	float area = 0;
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
+	contact = 0;
+
+	for (uint64_t z = 0; z < sz; z++) {
+		for (uint64_t y = 0; y < sy; y++) {
+			for (uint64_t x = 0; x < sx; x++) {
+				uint64_t loc = x + sx * (y + sy * z);
+
+				if (!binimg[loc]) {
+					continue;
+				}
+
+				contact |= (x < 1); // -x
+				contact |= (x >= sx - 1) << 1; // +x
+				contact |= (y < 1) << 2; // -y
+				contact |= (y >= sy - 1) << 3; // +y
+				contact |= (z < 1) << 4; // -z
+				contact |= (z >= sz - 1) << 5; // +z
+
+				check_intersections(
+					pts, 
+					x, y, z, 
+					pos, normal, 
+					projections, inv_projections
+				);
+
+				area += xs3d::area::points_to_area(pts, anisotropy, normal);
+			}
+		}
+	}
+
+	return area;
+}
+
 
 std::tuple<float*, uint8_t> cross_section(
 	const uint8_t* binimg,

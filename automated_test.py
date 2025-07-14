@@ -393,4 +393,21 @@ def test_2d():
     assert area == 0
 
 
+def test_off_axis_all_counted():
+    arr = np.zeros([10,10,10], dtype=bool, order="F")
+    arr[:5,:5,:5] = 1
+
+    point = [2,2,2]
+    normal = [1,1,1]
+
+    fast_result = xs3d.cross_sectional_area(arr, point, normal)
+    slow_result = xs3d.cross_sectional_area(arr, point, normal, slow_method=True)
+
+    assert fast_result == slow_result
+
+
+
+
+
+
 

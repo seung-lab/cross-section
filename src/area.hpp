@@ -1,6 +1,10 @@
 #ifndef __XS3D_AREA_HPP__
 #define __XS3D_AREA_HPP__
 
+#include <array>
+#include <vector>
+#include <utility>
+
 #include "vec.hpp"
 
 using namespace xs3d;

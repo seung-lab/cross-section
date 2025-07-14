@@ -14,6 +14,7 @@ def cross_sectional_area(
   normal:VECTOR_T,
   anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
+  slow_method:bool = False,
 ) -> Union[float, tuple[float, int]]:
   """
   Find the cross sectional area for a given binary image, 
@@ -41,6 +42,10 @@ def cross_sectional_area(
     0: 0 X     2: 0 Y     4: 0 Z      6: Unused
     1: Max X   3: Max Y   5: Max Z    7: Unused
 
+  slow_method: Calculate plane intersections at every
+    voxel. Used for automated testing to ensure
+    all locations are visited. Does not restrict analysis
+    to a single connected component.
 
   Returns: physical area covered by the section plane
   """
@@ -67,7 +72,7 @@ def cross_sectional_area(
   if binimg.ndim == 2:
     area, contact = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
-    area, contact = fastxs3d.area(binimg, pos, normal, anisotropy)
+    area, contact = fastxs3d.area(binimg, pos, normal, anisotropy, slow_method)
   else:
     raise ValueError("dimensions not supported")
 

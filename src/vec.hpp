@@ -1,8 +1,9 @@
 #ifndef __XS3D_VEC_HPP__
 #define __XS3D_VEC_HPP__
 
-namespace xs3d {
+#include <string>
 
+namespace xs3d {
 
 class Vec3 {
 public:

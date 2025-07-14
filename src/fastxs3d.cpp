@@ -42,11 +42,12 @@ auto section(
 	return std::make_tuple(arr, std::get<1>(tup));
 }
 
-auto area(
+auto calculate_area(
 	const py::array_t<uint8_t> &binimg,
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
-	const py::array_t<float> &anisotropy
+	const py::array_t<float> &anisotropy,
+	const bool slow_method
 ) {
 	const uint64_t sx = binimg.shape()[0];
 	const uint64_t sy = binimg.ndim() < 2
@@ -57,14 +58,29 @@ auto area(
 		: binimg.shape()[2];
 
 	uint8_t contact = false;
-	float area = xs3d::cross_sectional_area(
-		binimg.data(),
-		sx, sy, sz,
-		point.at(0), point.at(1), point.at(2),
-		normal.at(0), normal.at(1), normal.at(2),
-		anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-		contact
-	);
+	float area = 0;
+
+	if (slow_method) {
+		area = xs3d::cross_sectional_area_slow(
+			binimg.data(),
+			sx, sy, sz,
+			point.at(0), point.at(1), point.at(2),
+			normal.at(0), normal.at(1), normal.at(2),
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			contact
+		);
+	}
+	else {
+		area = xs3d::cross_sectional_area(
+			binimg.data(),
+			sx, sy, sz,
+			point.at(0), point.at(1), point.at(2),
+			normal.at(0), normal.at(1), normal.at(2),
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			contact
+		);
+	}
+
 	return std::tuple(area, contact);
 }
 
@@ -171,5 +187,5 @@ PYBIND11_MODULE(fastxs3d, m) {
 	m.doc() = "Finding cross sectional area in 3D voxelized images."; 
 	m.def("projection", &projection, "Project a cross section of a 3D image onto a 2D plane");
 	m.def("section", &section, "Return a floating point image that shows the voxels contributing area to a cross section.");
-	m.def("area", &area, "Find the cross sectional area for a given binary image, point, and normal vector.");
+	m.def("area", &calculate_area, "Find the cross sectional area for a given binary image, point, and normal vector.");
 }
