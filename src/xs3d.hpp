@@ -187,8 +187,8 @@ float calc_area_at_point(
 				Vec3 delta(x,y,z);
 				delta += cur;
 
-				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
-					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				uint64_t loc = static_cast<uint64_t>(std::round(delta.x)) + sx * (
+					static_cast<uint64_t>(std::round(delta.y)) + sy * static_cast<uint64_t>(std::round(delta.z))
 				);
 
 				if (!binimg[loc]) {
@@ -200,9 +200,9 @@ float calc_area_at_point(
 					
 					check_intersections(
 						pts, 
-						static_cast<uint64_t>(delta.x), 
-						static_cast<uint64_t>(delta.y), 
-						static_cast<uint64_t>(delta.z),
+						static_cast<uint64_t>(std::round(delta.x)), 
+						static_cast<uint64_t>(std::round(delta.y)), 
+						static_cast<uint64_t>(std::round(delta.z)),
 						pos, normal, 
 						projections, inv_projections
 					);
