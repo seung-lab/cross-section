@@ -156,6 +156,9 @@ float calc_area_at_point(
 	const std::vector<float>& inv_projections,
 	float* plane_visualization
 ) {
+
+	const uint64_t voxels = sx * sy * sz;
+
 	float subtotal = 0.0;
 
 	float xs = (cur.x - 1) >= 0 ? -1 : 0;
@@ -187,22 +190,30 @@ float calc_area_at_point(
 				Vec3 delta(x,y,z);
 				delta += cur;
 
-				uint64_t loc = static_cast<uint64_t>(std::round(delta.x)) + sx * (
-					static_cast<uint64_t>(std::round(delta.y)) + sy * static_cast<uint64_t>(std::round(delta.z))
+				// boundaries between voxels are located at 0.5
+				delta.x = std::round(delta.x);
+				delta.y = std::round(delta.y);
+				delta.z = std::round(delta.z);
+
+				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
 				);
 
-				if (!binimg[loc]) {
+				if (loc < 0 || loc >= voxels) {
+					continue;
+				}
+				else if (!binimg[loc]) {
 					continue;
 				}
 
 				if (ccl[loc] == 0) {
 					ccl[loc] = 1;
 					
-					check_intersections(
+					float area = check_intersections(
 						pts, 
-						static_cast<uint64_t>(std::round(delta.x)), 
-						static_cast<uint64_t>(std::round(delta.y)), 
-						static_cast<uint64_t>(std::round(delta.z)),
+						static_cast<uint64_t>(delta.x), 
+						static_cast<uint64_t>(delta.y), 
+						static_cast<uint64_t>(delta.z),
 						pos, normal, 
 						projections, inv_projections
 					);
