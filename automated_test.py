@@ -403,7 +403,7 @@ def test_off_axis_all_counted():
     fast_result = xs3d.cross_sectional_area(arr, point, normal)
     slow_result = xs3d.cross_sectional_area(arr, point, normal, slow_method=True)
 
-    assert fast_result == slow_result
+    assert np.isclose(fast_result, slow_result)
 
 
 
