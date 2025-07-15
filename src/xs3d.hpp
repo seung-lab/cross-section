@@ -209,7 +209,7 @@ float calc_area_at_point(
 				if (ccl[loc] == 0) {
 					ccl[loc] = 1;
 					
-					float area = check_intersections(
+					check_intersections(
 						pts, 
 						static_cast<uint64_t>(delta.x), 
 						static_cast<uint64_t>(delta.y), 
