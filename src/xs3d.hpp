@@ -12,6 +12,7 @@
 
 #include "vec.hpp"
 #include "area.hpp"
+#include "builtins.hpp"
 
 using namespace xs3d;
 
@@ -176,6 +177,277 @@ uint16_t check_intersections_2x2x2(
 	}
 
 	return edges;
+}
+
+void check_intersections_1x1x1(
+	std::vector<Vec3>& pts,
+	const uint64_t x, const uint64_t y, const uint64_t z,
+	const Vec3& pos, const Vec3& normal, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+	pts.clear();
+
+	Vec3 minpt(x,y,z);
+
+	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 / 2 + epsilon;
+
+	float dist_to_plane = std::abs((minpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > max_dist_to_plane) { 
+		return;
+	}
+
+	minpt += -0.5;
+
+	Vec3 pos2 = pos - minpt;
+
+	float corner_projections[4] = {
+		(pos2 - c[0]).dot(normal),
+		(pos2 - c[3]).dot(normal),
+		(pos2 - c[5]).dot(normal),
+		(pos2 - c[6]).dot(normal),
+	};
+
+	auto inlist = [&](const Vec3& pt){
+		for (const Vec3& p : pts) {
+			if (p.close(pt)) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	const uint64_t max_pts = (normal.num_zero_dims() >= 1)
+		? 4
+		: 6;
+
+	constexpr float bound = 0.5 + epsilon;
+
+	Vec3 corner;
+
+	for (int i = 0; i < 12; i++) {		
+		float proj = corner_projections[i & 0b11];
+
+		if (proj == 0) {
+			corner = pipe_points[i & 0b11];
+			corner += minpt;
+			if (i < 4 && !inlist(corner)) {
+				pts.push_back(corner);
+			}
+			continue;
+		}
+
+		float proj2 = projections[i >> 2];
+
+		// if traveling parallel to plane but
+		// not on the plane
+		if (proj2 == 0) {
+			continue;
+		}
+
+		float t = proj * inv_projections[i >> 2];
+		if (std::abs(t) > 1 + epsilon) {
+			continue;
+		}
+
+		Vec3 pipe = pipes[i >> 2];
+		corner = pipe_points[i & 0b11];
+		corner += minpt;
+		Vec3 nearest_pt = corner + pipe * t;
+
+		if (std::abs(nearest_pt.x - x) >= bound) {
+			continue;
+		}
+		else if (std::abs(nearest_pt.y - y) >= bound) {
+			continue;
+		}
+		else if (std::abs(nearest_pt.z - z) >= bound) {
+			continue;
+		}
+
+		// if t = -1, 0, 1 we're on a corner, which are the only areas where a
+		// duplicate vertex is possible.
+		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-1) < epsilon);
+
+		if (!iscorner || !inlist(nearest_pt)) {
+			pts.push_back(nearest_pt);
+
+			if (pts.size() >= max_pts) {
+				break;
+			}
+		}
+	}
+}
+
+float calc_area_at_point_2x2x2(
+	uint8_t cube,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+	const uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
+	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
+	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
+
+	Vec3 centerpt(x,y,z);
+	centerpt += 0.5;
+
+	// for testing the 2x2x2 field, we need to move the point
+	// to the center of the grid. then if the distance to the plane is
+	// > sqrt(3), it's not intersecting.
+
+	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
+
+	float dist_to_plane = std::abs((centerpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > max_dist_to_plane) { 
+		return 0.0;
+	}
+
+	auto areafn2 = [&]() {
+		check_intersections_2x2x2(
+			pts, 
+			x, y, z,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		return xs3d::area::points_to_area(pts, anisotropy, normal);
+	};
+
+	auto areafn1 = [&](uint8_t idx) {
+		const uint64_t oz = idx >> 2;
+		const uint64_t oy = (idx - (oz << 2)) >> 1;
+		const uint64_t ox = (idx - (oz << 2) - (oy << 1));
+
+		check_intersections_1x1x1(
+			pts, 
+			x+ox, y+oy, z+oz,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		return xs3d::area::points_to_area(pts, anisotropy, normal);
+	};
+
+	float area = 0;
+	uint8_t idx = 0;
+
+	if (popcount(cube) >= 5) {
+		area = areafn2();
+		if (area == 0) {
+			return area;
+		}
+		while (static_cast<uint8_t>(~cube)) {
+			idx = ffs(~cube) - 1;
+			area -= areafn1(idx);
+			cube |= (1 << idx);
+		}
+	}
+	else {
+		while (static_cast<uint8_t>(cube)) {
+			idx = ffs(cube) - 1;
+			area += areafn1(idx);
+			cube = cube & ~(1 << idx);
+		}
+	}
+
+	return area;
+}
+
+float calc_area_at_point(
+	const uint8_t* binimg,
+	std::vector<bool>& ccl,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections,
+	float* plane_visualization
+) {
+
+	const uint64_t voxels = sx * sy * sz;
+
+	float subtotal = 0.0;
+
+	float xs = (cur.x - 1) >= 0 ? -1 : 0;
+	float ys = (cur.y - 1) >= 0 ? -1 : 0;
+	float zs = (cur.z - 1) >= 0 ? -1 : 0;
+
+	float xe = (cur.x + 1) < sx ? 1 : 0;
+	float ye = (cur.y + 1) < sy ? 1 : 0;
+	float ze = (cur.z + 1) < sz ? 1 : 0;
+	
+	// only need to check around the current voxel if
+	// there's a possibility that there is a gap due
+	// to basis vector motion. If the normal is axis
+	// aligned to x, y, or z, there will be no gap.
+	if (normal.is_axis_aligned()) {
+		xs = 0;
+		ys = 0;
+		zs = 0;
+
+		xe = 0;
+		ye = 0;
+		ze = 0;		
+	}
+
+	for (float z = zs; z <= ze; z++) {
+		for (float y = ys; y <= ye; y++) {
+			for (float x = xs; x <= xe; x++) {
+				
+				Vec3 delta(x,y,z);
+				delta += cur;
+
+				// boundaries between voxels are located at 0.5
+				delta.x = std::round(delta.x);
+				delta.y = std::round(delta.y);
+				delta.z = std::round(delta.z);
+
+				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				);
+
+				if (loc < 0 || loc >= voxels) {
+					continue;
+				}
+				else if (!binimg[loc]) {
+					continue;
+				}
+
+				if (ccl[loc] == 0) {
+					ccl[loc] = 1;
+					
+					check_intersections_1x1x1(
+						pts, 
+						static_cast<uint64_t>(delta.x), 
+						static_cast<uint64_t>(delta.y), 
+						static_cast<uint64_t>(delta.z),
+						pos, normal, 
+						projections, inv_projections
+					);
+
+					const float area = xs3d::area::points_to_area(pts, anisotropy, normal);
+					subtotal += area;
+
+					if (plane_visualization != NULL && area > 0.0) {
+						plane_visualization[loc] = area;
+					}
+				}
+			}
+		}
+	}
+
+	return subtotal;
 }
 
 uint8_t compute_cube(
@@ -530,277 +802,6 @@ float cross_sectional_area_helper_2x2x2(
 	}
 
 	return total;
-}
-
-void check_intersections_1x1x1(
-	std::vector<Vec3>& pts,
-	const uint64_t x, const uint64_t y, const uint64_t z,
-	const Vec3& pos, const Vec3& normal, 
-	const std::vector<float>& projections, 
-	const std::vector<float>& inv_projections
-) {
-	pts.clear();
-
-	Vec3 minpt(x,y,z);
-
-	constexpr float epsilon = 2e-5;
-	constexpr float max_dist_to_plane = 1.7320508076 / 2 + epsilon;
-
-	float dist_to_plane = std::abs((minpt-pos).dot(normal));
-	// if the distance to the plane is greater than sqrt(3)/2
-	// then the plane is not intersecting at all.
-	if (dist_to_plane > max_dist_to_plane) { 
-		return;
-	}
-
-	minpt += -0.5;
-
-	Vec3 pos2 = pos - minpt;
-
-	float corner_projections[4] = {
-		(pos2 - c[0]).dot(normal),
-		(pos2 - c[3]).dot(normal),
-		(pos2 - c[5]).dot(normal),
-		(pos2 - c[6]).dot(normal),
-	};
-
-	auto inlist = [&](const Vec3& pt){
-		for (const Vec3& p : pts) {
-			if (p.close(pt)) {
-				return true;
-			}
-		}
-		return false;
-	};
-
-	const uint64_t max_pts = (normal.num_zero_dims() >= 1)
-		? 4
-		: 6;
-
-	constexpr float bound = 0.5 + epsilon;
-
-	Vec3 corner;
-
-	for (int i = 0; i < 12; i++) {		
-		float proj = corner_projections[i & 0b11];
-
-		if (proj == 0) {
-			corner = pipe_points[i & 0b11];
-			corner += minpt;
-			if (i < 4 && !inlist(corner)) {
-				pts.push_back(corner);
-			}
-			continue;
-		}
-
-		float proj2 = projections[i >> 2];
-
-		// if traveling parallel to plane but
-		// not on the plane
-		if (proj2 == 0) {
-			continue;
-		}
-
-		float t = proj * inv_projections[i >> 2];
-		if (std::abs(t) > 1 + epsilon) {
-			continue;
-		}
-
-		Vec3 pipe = pipes[i >> 2];
-		corner = pipe_points[i & 0b11];
-		corner += minpt;
-		Vec3 nearest_pt = corner + pipe * t;
-
-		if (std::abs(nearest_pt.x - x) >= bound) {
-			continue;
-		}
-		else if (std::abs(nearest_pt.y - y) >= bound) {
-			continue;
-		}
-		else if (std::abs(nearest_pt.z - z) >= bound) {
-			continue;
-		}
-
-		// if t = -1, 0, 1 we're on a corner, which are the only areas where a
-		// duplicate vertex is possible.
-		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-1) < epsilon);
-
-		if (!iscorner || !inlist(nearest_pt)) {
-			pts.push_back(nearest_pt);
-
-			if (pts.size() >= max_pts) {
-				break;
-			}
-		}
-	}
-}
-
-float calc_area_at_point_2x2x2(
-	uint8_t cube,
-	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	const Vec3& cur, const Vec3& pos, 
-	const Vec3& normal, const Vec3& anisotropy,
-	std::vector<Vec3>& pts, 
-	const std::vector<float>& projections, 
-	const std::vector<float>& inv_projections
-) {
-	const uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
-	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
-	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
-
-	Vec3 centerpt(x,y,z);
-	centerpt += 0.5;
-
-	// for testing the 2x2x2 field, we need to move the point
-	// to the center of the grid. then if the distance to the plane is
-	// > sqrt(3), it's not intersecting.
-
-	constexpr float epsilon = 2e-5;
-	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
-
-	float dist_to_plane = std::abs((centerpt-pos).dot(normal));
-	// if the distance to the plane is greater than sqrt(3)/2
-	// then the plane is not intersecting at all.
-	if (dist_to_plane > max_dist_to_plane) { 
-		return 0.0;
-	}
-
-	auto areafn2 = [&]() {
-		check_intersections_2x2x2(
-			pts, 
-			x, y, z,
-			pos, normal, 
-			projections, inv_projections
-		);
-
-		return points_to_area(pts, anisotropy, normal);
-	};
-
-	auto areafn1 = [&](uint8_t idx) {
-		const uint64_t oz = idx >> 2;
-		const uint64_t oy = (idx - (oz << 2)) >> 1;
-		const uint64_t ox = (idx - (oz << 2) - (oy << 1));
-
-		check_intersections_1x1x1(
-			pts, 
-			x+ox, y+oy, z+oz,
-			pos, normal, 
-			projections, inv_projections
-		);
-
-		return points_to_area(pts, anisotropy, normal);
-	};
-
-	float area = 0;
-	uint8_t idx = 0;
-
-	if (popcount(cube) >= 5) {
-		area = areafn2();
-		if (area == 0) {
-			return area;
-		}
-		while (static_cast<uint8_t>(~cube)) {
-			idx = ffs(~cube) - 1;
-			area -= areafn1(idx);
-			cube |= (1 << idx);
-		}
-	}
-	else {
-		while (static_cast<uint8_t>(cube)) {
-			idx = ffs(cube) - 1;
-			area += areafn1(idx);
-			cube = cube & ~(1 << idx);
-		}
-	}
-
-	return area;
-}
-
-float calc_area_at_point(
-	const uint8_t* binimg,
-	std::vector<bool>& ccl,
-	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	const Vec3& cur, const Vec3& pos, 
-	const Vec3& normal, const Vec3& anisotropy,
-	std::vector<Vec3>& pts, 
-	const std::vector<float>& projections, 
-	const std::vector<float>& inv_projections,
-	float* plane_visualization
-) {
-
-	const uint64_t voxels = sx * sy * sz;
-
-	float subtotal = 0.0;
-
-	float xs = (cur.x - 1) >= 0 ? -1 : 0;
-	float ys = (cur.y - 1) >= 0 ? -1 : 0;
-	float zs = (cur.z - 1) >= 0 ? -1 : 0;
-
-	float xe = (cur.x + 1) < sx ? 1 : 0;
-	float ye = (cur.y + 1) < sy ? 1 : 0;
-	float ze = (cur.z + 1) < sz ? 1 : 0;
-	
-	// only need to check around the current voxel if
-	// there's a possibility that there is a gap due
-	// to basis vector motion. If the normal is axis
-	// aligned to x, y, or z, there will be no gap.
-	if (normal.is_axis_aligned()) {
-		xs = 0;
-		ys = 0;
-		zs = 0;
-
-		xe = 0;
-		ye = 0;
-		ze = 0;		
-	}
-
-	for (float z = zs; z <= ze; z++) {
-		for (float y = ys; y <= ye; y++) {
-			for (float x = xs; x <= xe; x++) {
-				
-				Vec3 delta(x,y,z);
-				delta += cur;
-
-				// boundaries between voxels are located at 0.5
-				delta.x = std::round(delta.x);
-				delta.y = std::round(delta.y);
-				delta.z = std::round(delta.z);
-
-				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
-					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
-				);
-
-				if (loc < 0 || loc >= voxels) {
-					continue;
-				}
-				else if (!binimg[loc]) {
-					continue;
-				}
-
-				if (ccl[loc] == 0) {
-					ccl[loc] = 1;
-					
-					check_intersections_1x1x1(
-						pts, 
-						static_cast<uint64_t>(delta.x), 
-						static_cast<uint64_t>(delta.y), 
-						static_cast<uint64_t>(delta.z),
-						pos, normal, 
-						projections, inv_projections
-					);
-
-					const float area = xs3d::area::points_to_area(pts, anisotropy, normal);
-					subtotal += area;
-
-					if (plane_visualization != NULL && area > 0.0) {
-						plane_visualization[loc] = area;
-					}
-				}
-			}
-		}
-	}
-
-	return subtotal;
 }
 
 float cross_sectional_area_helper(
