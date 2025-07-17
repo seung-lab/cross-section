@@ -473,7 +473,7 @@ float cross_sectional_area_slow(
 	std::vector<Vec3> pts;
 	pts.reserve(6);
 
-	float area = 0;
+	double area = 0;
 
 	const std::vector<float> projections = {
 		ihat.dot(normal),
