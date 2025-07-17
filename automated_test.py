@@ -277,9 +277,15 @@ def test_empty():
 @pytest.mark.parametrize("normal", [[1,0,0], [0,1,0], [0,0,1], [1,1,1], [-1,-1,1], [.3,-.2,.7]])
 def test_moving_window(off, normal):
     labels = np.zeros([100,100,100], dtype=bool, order="F")
-    
     labels[:off, :off, :off] = True
     initial_area = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal)
+    initial_area_slow = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal, slow_method=True)
+
+    xs = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, slow_method=False)
+    xs2 = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, slow_method=True)
+
+    assert np.isclose(initial_area, initial_area_slow)
+    assert np.isclose(xs.sum(), xs2.sum())
 
     for i in range(30):
         labels[:] = False
@@ -287,7 +293,6 @@ def test_moving_window(off, normal):
 
         area = xs3d.cross_sectional_area(labels, [i+off//2, i+off//2, i+off//2], normal)
         assert np.isclose(area, initial_area)
-
 
 
 def test_cross_section():
