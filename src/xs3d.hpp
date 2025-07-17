@@ -42,7 +42,497 @@ const Vec3 pipe_points[4] = {
 	c[0], c[3], c[5], c[6]
 };
 
-void check_intersections(
+uint16_t check_intersections_2x2x2(
+	std::vector<Vec3>& pts,
+	const uint64_t x, const uint64_t y, const uint64_t z,
+	const Vec3& pos, const Vec3& normal, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+	static const Vec3 c[8] = {
+		Vec3(0, 0, 0), // 0
+		Vec3(0, 0, 2), // 1 
+		Vec3(0, 2, 0), // 2 
+		Vec3(0, 2, 2), // 3
+		Vec3(2, 0, 0), // 4
+		Vec3(2, 0, 2), // 5
+		Vec3(2, 2, 0), // 6
+		Vec3(2, 2, 2) // 7
+	};
+
+	static const Vec3 pipes[3] = {
+		ihat, jhat, khat
+	};
+
+	static const Vec3 pipe_points[4] = {
+		c[0], c[3], c[5], c[6]
+	};
+
+	pts.clear();
+
+	Vec3 centerpt(x,y,z);
+	centerpt += 0.5;
+
+	// for testing the 2x2x2 field, we need to move the point
+	// to the center of the grid. then if the distance to the plane is
+	// > sqrt(3), it's not intersecting.
+
+	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
+
+	float dist_to_plane = std::abs((centerpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > max_dist_to_plane) { 
+		return 0;
+	}
+
+	Vec3 minpt(x,y,z);
+	minpt -= 0.5;
+
+	Vec3 pos2 = pos - minpt;
+
+	float corner_projections[4] = {
+		(pos2 - c[0]).dot(normal),
+		(pos2 - c[3]).dot(normal),
+		(pos2 - c[5]).dot(normal),
+		(pos2 - c[6]).dot(normal),
+	};
+
+	auto inlist = [&](const Vec3& pt){
+		for (const Vec3& p : pts) {
+			if (p.close(pt)) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	const uint64_t max_pts = (normal.num_zero_dims() >= 1)
+		? 4
+		: 6;
+
+	constexpr float bound = 1 + epsilon;
+
+	Vec3 corner;
+	uint16_t edges = 0;
+
+	// edges is marked with
+	// iteration order (i) as:
+	// 000x, 022x, 202x, 220x
+	// 000y, 022y, 202y, 220y
+	// 000, 022z, 202z, 220z
+
+	for (int i = 0; i < 12; i++) {		
+		float proj = corner_projections[i & 0b11];
+
+		if (proj == 0) {
+			corner = pipe_points[i & 0b11];
+			corner += minpt;
+			if (i < 4 && !inlist(corner)) {
+				pts.push_back(corner);
+			}
+			continue;
+		}
+
+		// if traveling parallel to plane but
+		// not on the plane
+		if (projections[i >> 2] == 0) {
+			continue;
+		}
+
+		float t = proj * inv_projections[i >> 2];
+		if (std::abs(t) > 2 + epsilon) {
+			continue;
+		}
+
+		Vec3 pipe = pipes[i >> 2];
+		corner = pipe_points[i & 0b11];
+		corner += minpt;
+		Vec3 nearest_pt = corner + pipe * t;
+
+		if (std::abs(nearest_pt.x - centerpt.x) >= bound) {
+			continue;
+		}
+		else if (std::abs(nearest_pt.y - centerpt.y) >= bound) {
+			continue;
+		}
+		else if (std::abs(nearest_pt.z - centerpt.z) >= bound) {
+			continue;
+		}
+
+		// if t = -2, 0, 2 we're on a corner, which are the only areas where a
+		// duplicate vertex is possible.
+		const bool iscorner = (std::abs(t) < epsilon || std::abs(std::abs(t)-2) < epsilon);
+
+		if (!iscorner || !inlist(nearest_pt)) {
+			pts.push_back(nearest_pt);
+			edges |= (1 << i);
+
+			if (pts.size() >= max_pts) {
+				break;
+			}
+		}
+	}
+
+	return edges;
+}
+
+uint8_t compute_cube(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const uint64_t x, const uint64_t y, const uint64_t z
+) {
+	const uint64_t sxy = sx * sy;
+	const uint64_t loc = x + sx * (y + sy * z);
+
+	return static_cast<uint8_t>(
+		(binimg[loc] > 0)
+		| (((x < sx - 1) && (binimg[loc+1] > 0)) << 1)
+		| (((y < sy - 1) && (binimg[loc+sx] > 0)) << 2)
+		| (((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0)) << 3)
+		| (((z < sz - 1) && (binimg[loc+sxy] > 0)) << 4)
+		| (((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0)) << 5)
+		| (((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0)) << 6)
+		| (((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0)) << 7)
+	);
+}
+
+bool is_26_connected(
+	const uint8_t center, const uint8_t candidate, 
+	const int x, const int y, const int z
+) {
+	if (x < 0) {
+		if (y < 0) {
+			if (z < 0) {
+				return (candidate & 0b10000000) && (center & 0b00000001);
+			}
+			else if (z == 0) {
+				return (candidate & 0b10001000) && (center & 0b00010001);
+			}
+			else {
+				return (candidate & 0b00001000) && (center & 0b00010000);
+			}
+		}
+		else if (y == 0) {
+			if (z < 0) {
+				return (candidate & 0b10100000) && (center & 0b00000101);
+			}
+			else if (z == 0) {
+				return (candidate & 0b10101010) && (center & 0b01010101);
+			}
+			else {
+				return (candidate & 0b00001010) && (center & 0b01010000);
+			}
+		}
+		else {
+			if (z < 0) {
+				return (candidate & 0b00100000) && (center & 0b00000100);
+			}
+			else if (z == 0) {
+				return (candidate & 0b00100010) && (center & 0b01000010);
+			}
+			else {
+				return (candidate & 0b00000010) && (center & 0b01000000);
+			}
+		}
+	}
+	else if (x == 0) {
+		if (y < 0) {
+			if (z < 0) {
+				return (candidate & 0b11000000) && (center & 0b00000011);
+			}
+			else if (z == 0) {
+				return (candidate & 0b11001100) && (center & 0b00110011);
+			}
+			else {
+				return (candidate & 0b00001100) && (center & 0b00110000);
+			}
+		}
+		else if (y == 0) {
+			if (z < 0) {
+				return (candidate & 0b11110000) && (center & 0b00001111);
+			}
+			else if (z == 0) {
+				return true;
+			}
+			else {
+				return (candidate & 0b00001111) && (center & 0b11110000);
+			}
+		}
+		else {
+			if (z < 0) {
+				return (candidate & 0b00110000) && (center & 0b00001100);
+			}
+			else if (z == 0) {
+				return (candidate & 0b00110011) && (center & 0b11001100);
+			}
+			else {
+				return (candidate & 0b00000011) && (center & 0b11000000);
+			}
+		}
+	}
+	else {
+		if (y < 0) {
+			if (z < 0) {
+				return (candidate & 0b01000000) && (center & 0b00000010);
+			}
+			else if (z == 0) {
+				return (candidate & 0b01000100) && (center & 0b00100010);
+			}
+			else {
+				return (candidate & 0b00000100) && (center & 0b00100000);
+			}
+		}
+		else if (y == 0) {
+			if (z < 0) {
+				return (candidate & 0b01010000) && (center & 0b00001010);
+			}
+			else if (z == 0) {
+				return (candidate & 0b01010101) && (center & 0b10101010);
+			}
+			else {
+				return (candidate & 0b00000101) && (center & 0b10100000);
+			}
+		}
+		else {
+			if (z < 0) {
+				return (candidate & 0b00010000) && (center & 0b00001000);
+			}
+			else if (z == 0) {
+				return (candidate & 0b00010001) && (center & 0b10001000);
+			}
+			else {
+				return (candidate & 0b00000001) && (center & 0b10000000);
+			}
+		}
+	}
+}
+
+float robust_calc_area_at_point_2x2x2(
+	const uint8_t* binimg,
+	std::vector<bool>& ccl,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+
+	uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
+	uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
+	uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
+
+	float subtotal = 0.0;
+
+	float xs = (cur.x - 2) >= 0 ? -2 : 0;
+	float ys = (cur.y - 2) >= 0 ? -2 : 0;
+	float zs = (cur.z - 2) >= 0 ? -2 : 0;
+
+	float xe = (cur.x + 2) < sx ? 2 : 0;
+	float ye = (cur.y + 2) < sy ? 2 : 0;
+	float ze = (cur.z + 2) < sz ? 2 : 0;
+	
+	// only need to check around the current voxel if
+	// there's a possibility that there is a gap due
+	// to basis vector motion. If the normal is axis
+	// aligned to x, y, or z, there will be no gap.
+	if (normal.is_axis_aligned()) {
+		xs = 0;
+		ys = 0;
+		zs = 0;
+
+		xe = 0;
+		ye = 0;
+		ze = 0;		
+	}
+
+	const uint8_t center = compute_cube(binimg, sx, sy, sz, x, y, z);
+
+	for (int64_t zi = zs; zi <= ze; zi += 2) {
+		for (int64_t yi = ys; yi <= ye; yi += 2) {
+			for (int64_t xi = xs; xi <= xe; xi += 2) {
+				
+				Vec3 delta(xi,yi,zi);
+				delta += cur;
+
+				const uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				);
+
+				const uint64_t ccl_loc =  (static_cast<uint64_t>(delta.x) >> 1) + ((sx+1) >> 1) * (
+					(static_cast<uint64_t>(delta.y) >> 1) + ((sy+1) >> 1) * (static_cast<uint64_t>(delta.z) >> 1)
+				);
+
+				if (!binimg[loc] || ccl[ccl_loc]) {
+					continue;
+				}
+				
+				ccl[ccl_loc] = true;
+					
+				uint8_t candidate = compute_cube(binimg, sx, sy, sz, x + xi, y + yi, z + zi);
+
+				if (is_26_connected(center, candidate, xi, yi, zi)) {
+					subtotal += calc_area_at_point_2x2x2(
+						candidate,
+						sx, sy, sz,
+						delta, pos, normal, anisotropy,
+						pts, 
+						projections, inv_projections
+					);
+				}
+			}
+		}
+	}
+
+	return subtotal;
+}
+
+float cross_sectional_area_helper_2x2x2(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& pos, // plane position
+	const Vec3& normal, // plane normal vector
+	const Vec3& anisotropy, // anisotropy
+	uint8_t& contact
+) {
+	const uint64_t grid_size = std::max((sx * sy * sz + 7) >> 3, static_cast<uint64_t>(1));
+	std::vector<bool> ccl(grid_size);
+
+	// rational approximation of sqrt(3) is 97/56
+	// more reliable behavior across compilers/architectures
+	uint64_t plane_size = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+
+	// maximum possible size of plane
+	uint64_t psx = plane_size;
+	uint64_t psy = psx;
+
+	std::vector<bool> visited(psx * psy);
+
+	Vec3 basis1 = normal.cross(ihat);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(jhat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	uint64_t plane_pos_x = plane_size / 2;
+	uint64_t plane_pos_y = plane_size / 2;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<uint64_t> stack;
+	stack.push(ploc);
+
+	float total = 0.0;
+
+	std::vector<Vec3> pts;
+	pts.reserve(6);
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+			continue;
+		}
+		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+			continue;
+		}
+
+		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
+			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		);
+
+		if (!binimg[loc]) {
+			continue;
+		}
+
+		contact |= (cur.x < 1); // -x
+		contact |= (cur.x >= sx - 1) << 1; // +x
+		contact |= (cur.y < 1) << 2; // -y
+		contact |= (cur.y >= sy - 1) << 3; // +y
+		contact |= (cur.z < 1) << 4; // -z
+		contact |= (cur.z >= sz - 1) << 5; // +z
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		uint64_t upleft = ploc - psx - 1; 
+		uint64_t downleft = ploc + psx - 1;
+		uint64_t upright = ploc - psx + 1;
+		uint64_t downright = ploc + psx + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+
+		if (x > 0 && y > 0 && !visited[upleft]) {
+			stack.push(upleft);
+		}
+		if (x < psx - 1 && y > 0 && !visited[upright]) {
+			stack.push(upright);
+		}
+		if (x > 0 && y < psy - 1 && !visited[downleft]) {
+			stack.push(downleft);
+		}
+		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
+			stack.push(downright);
+		}
+
+		total += robust_calc_area_at_point_2x2x2(
+			binimg, ccl,
+			sx, sy, sz,
+			cur, pos, normal, anisotropy,
+			pts, projections, inv_projections
+		);
+	}
+
+	return total;
+}
+
+void check_intersections_1x1x1(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
 	const Vec3& pos, const Vec3& normal, 
@@ -209,7 +699,7 @@ float calc_area_at_point(
 				if (ccl[loc] == 0) {
 					ccl[loc] = 1;
 					
-					check_intersections(
+					check_intersections_1x1x1(
 						pts, 
 						static_cast<uint64_t>(delta.x), 
 						static_cast<uint64_t>(delta.y), 
@@ -438,11 +928,11 @@ float cross_sectional_area(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	return cross_sectional_area_helper(
+	return cross_sectional_area_helper_2x2x2(
 		binimg, 
 		sx, sy, sz, 
 		pos, normal, anisotropy,
-		contact, /*plane_visualization=*/NULL
+		contact
 	);
 }
 
@@ -506,7 +996,7 @@ float cross_sectional_area_slow(
 				contact |= (z < 1) << 4; // -z
 				contact |= (z >= sz - 1) << 5; // +z
 
-				check_intersections(
+				check_intersections_1x1x1(
 					pts, 
 					x, y, z, 
 					pos, normal, 
@@ -632,7 +1122,7 @@ std::tuple<float*, uint8_t> cross_section_slow(
 				contact |= (z < 1) << 4; // -z
 				contact |= (z >= sz - 1) << 5; // +z
 
-				check_intersections(
+				check_intersections_1x1x1(
 					pts, 
 					x, y, z, 
 					pos, normal, 
