@@ -635,6 +635,87 @@ void check_intersections_1x1x1(
 	}
 }
 
+float calc_area_at_point_2x2x2(
+	uint8_t cube,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+	const uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
+	const uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
+	const uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
+
+	Vec3 centerpt(x,y,z);
+	centerpt += 0.5;
+
+	// for testing the 2x2x2 field, we need to move the point
+	// to the center of the grid. then if the distance to the plane is
+	// > sqrt(3), it's not intersecting.
+
+	constexpr float epsilon = 2e-5;
+	constexpr float max_dist_to_plane = 1.7320508076 + epsilon;
+
+	float dist_to_plane = std::abs((centerpt-pos).dot(normal));
+	// if the distance to the plane is greater than sqrt(3)/2
+	// then the plane is not intersecting at all.
+	if (dist_to_plane > max_dist_to_plane) { 
+		return 0.0;
+	}
+
+	auto areafn2 = [&]() {
+		check_intersections_2x2x2(
+			pts, 
+			x, y, z,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		return points_to_area(pts, anisotropy, normal);
+	};
+
+	auto areafn1 = [&](uint8_t idx) {
+		const uint64_t oz = idx >> 2;
+		const uint64_t oy = (idx - (oz << 2)) >> 1;
+		const uint64_t ox = (idx - (oz << 2) - (oy << 1));
+
+		check_intersections_1x1x1(
+			pts, 
+			x+ox, y+oy, z+oz,
+			pos, normal, 
+			projections, inv_projections
+		);
+
+		return points_to_area(pts, anisotropy, normal);
+	};
+
+	float area = 0;
+	uint8_t idx = 0;
+
+	if (popcount(cube) >= 5) {
+		area = areafn2();
+		if (area == 0) {
+			return area;
+		}
+		while (static_cast<uint8_t>(~cube)) {
+			idx = ffs(~cube) - 1;
+			area -= areafn1(idx);
+			cube |= (1 << idx);
+		}
+	}
+	else {
+		while (static_cast<uint8_t>(cube)) {
+			idx = ffs(cube) - 1;
+			area += areafn1(idx);
+			cube = cube & ~(1 << idx);
+		}
+	}
+
+	return area;
+}
+
 float calc_area_at_point(
 	const uint8_t* binimg,
 	std::vector<bool>& ccl,
