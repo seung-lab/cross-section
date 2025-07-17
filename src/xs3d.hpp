@@ -770,6 +770,10 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		stack.push(ploc);
 	}
 
+	const float sxf = static_cast<float>(sx) - 0.5;
+	const float syf = static_cast<float>(sy) - 0.5;
+	const float szf = static_cast<float>(sz) - 0.5;
+
 	while (!stack.empty()) {
 		ploc = stack.top();
 		stack.pop();
@@ -789,15 +793,17 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		Vec3 delta = basis1 * dx + basis2 * dy;
 		Vec3 cur = pos + delta;
 
-		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
 			continue;
 		}
-		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
 			continue;
 		}
 		else if (delta.norm2() >= crop_distance_sq) {
 			continue;
 		}
+
+		cur = cur.round();
 
 		bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
 		bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
