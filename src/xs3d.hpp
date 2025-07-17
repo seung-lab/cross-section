@@ -218,7 +218,7 @@ float calc_area_at_point(
 						projections, inv_projections
 					);
 
-					float area = xs3d::area::points_to_area(pts, anisotropy, normal);
+					const float area = xs3d::area::points_to_area(pts, anisotropy, normal);
 					subtotal += area;
 
 					if (plane_visualization != NULL && area > 0.0) {
@@ -559,7 +559,6 @@ std::tuple<float*, uint8_t> cross_section(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-
 	cross_sectional_area_helper(
 		binimg, 
 		sx, sy, sz, 
@@ -601,8 +600,6 @@ std::tuple<float*, uint8_t> cross_section_slow(
 
 	std::vector<Vec3> pts;
 	pts.reserve(6);
-
-	float area = 0;
 
 	const std::vector<float> projections = {
 		ihat.dot(normal),
