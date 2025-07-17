@@ -326,11 +326,11 @@ float cross_sectional_area_helper(
 		}
 
 		contact |= (cur.x < 0.5); // -x
-		contact |= (cur.x >= sx - 0.5) << 1; // +x
+		contact |= (cur.x >= sx - 1.5) << 1; // +x
 		contact |= (cur.y < 0.5) << 2; // -y
-		contact |= (cur.y >= sy - 0.5) << 3; // +y
+		contact |= (cur.y >= sy - 1.5) << 3; // +y
 		contact |= (cur.z < 0.5) << 4; // -z
-		contact |= (cur.z >= sz - 0.5) << 5; // +z
+		contact |= (cur.z >= sz - 1.5) << 5; // +z
 
 		uint64_t up = ploc - psx; 
 		uint64_t down = ploc + psx;
