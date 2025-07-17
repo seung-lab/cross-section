@@ -87,6 +87,7 @@ def cross_section(
   normal:VECTOR_T,
   anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
+  slow_method:bool = False,
 ) -> Union[npt.NDArray[np.float32], tuple[npt.NDArray[np.float32], int]]:
   """
   Compute which voxels are intercepted by a section plane
@@ -140,7 +141,7 @@ def cross_section(
   if binimg.ndim != 3:
     raise ValueError("dimensions not supported")
   
-  section, contact = fastxs3d.section(binimg, pos, normal, anisotropy)
+  section, contact = fastxs3d.section(binimg, pos, normal, anisotropy, slow_method)
 
   if return_contact:
     return (section, contact)

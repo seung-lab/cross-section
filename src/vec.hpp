@@ -91,6 +91,9 @@ public:
 	Vec3 abs() const {
 		return Vec3(std::abs(x), std::abs(y), std::abs(z));
 	}
+	Vec3 round() const {
+		return Vec3(std::round(x), std::round(y), std::round(z));
+	}
 	int argmax() const {
 		if (x >= y) {
 			return (x >= z) ? 0 : 2;

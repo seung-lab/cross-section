@@ -156,6 +156,9 @@ float calc_area_at_point(
 	const std::vector<float>& inv_projections,
 	float* plane_visualization
 ) {
+
+	const uint64_t voxels = sx * sy * sz;
+
 	float subtotal = 0.0;
 
 	float xs = (cur.x - 1) >= 0 ? -1 : 0;
@@ -187,11 +190,19 @@ float calc_area_at_point(
 				Vec3 delta(x,y,z);
 				delta += cur;
 
+				// boundaries between voxels are located at 0.5
+				delta.x = std::round(delta.x);
+				delta.y = std::round(delta.y);
+				delta.z = std::round(delta.z);
+
 				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
 					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
 				);
 
-				if (!binimg[loc]) {
+				if (loc < 0 || loc >= voxels) {
+					continue;
+				}
+				else if (!binimg[loc]) {
 					continue;
 				}
 
@@ -207,7 +218,7 @@ float calc_area_at_point(
 						projections, inv_projections
 					);
 
-					float area = xs3d::area::points_to_area(pts, anisotropy, normal);
+					const float area = xs3d::area::points_to_area(pts, anisotropy, normal);
 					subtotal += area;
 
 					if (plane_visualization != NULL && area > 0.0) {
@@ -295,27 +306,31 @@ float cross_sectional_area_helper(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
 			continue;
 		}
-		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+		else if (cur.x >= (sx - 0.5) || cur.y >= (sy - 0.5) || cur.z >= (sz - 0.5)) {
 			continue;
 		}
 
-		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
-			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		const uint64_t loc = (
+			static_cast<uint64_t>(std::round(cur.x)) 
+			+ sx * (
+				static_cast<uint64_t>(std::round(cur.y)) 
+				+ sy * static_cast<uint64_t>(std::round(cur.z))
+			)
 		);
 
 		if (!binimg[loc]) {
 			continue;
 		}
 
-		contact |= (cur.x < 1); // -x
-		contact |= (cur.x >= sx - 1) << 1; // +x
-		contact |= (cur.y < 1) << 2; // -y
-		contact |= (cur.y >= sy - 1) << 3; // +y
-		contact |= (cur.z < 1) << 4; // -z
-		contact |= (cur.z >= sz - 1) << 5; // +z
+		contact |= (cur.x < 0.5); // -x
+		contact |= (cur.x >= sx - 0.5) << 1; // +x
+		contact |= (cur.y < 0.5) << 2; // -y
+		contact |= (cur.y >= sy - 0.5) << 3; // +y
+		contact |= (cur.z < 0.5) << 4; // -z
+		contact |= (cur.z >= sz - 0.5) << 5; // +z
 
 		uint64_t up = ploc - psx; 
 		uint64_t down = ploc + psx;
@@ -458,7 +473,7 @@ float cross_sectional_area_slow(
 	std::vector<Vec3> pts;
 	pts.reserve(6);
 
-	float area = 0;
+	double area = 0;
 
 	const std::vector<float> projections = {
 		ihat.dot(normal),
@@ -506,7 +521,6 @@ float cross_sectional_area_slow(
 	return area;
 }
 
-
 std::tuple<float*, uint8_t> cross_section(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -545,13 +559,91 @@ std::tuple<float*, uint8_t> cross_section(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-
 	cross_sectional_area_helper(
 		binimg, 
 		sx, sy, sz, 
 		pos, normal, anisotropy,
 		contact, plane_visualization
 	);
+
+	return std::make_tuple(plane_visualization, contact);
+}
+
+std::tuple<float*, uint8_t> cross_section_slow(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	const float wx, const float wy, const float wz,
+	float* plane_visualization = NULL
+) {
+	if (plane_visualization == NULL) {
+		plane_visualization = new float[sx * sy * sz]();
+	}
+
+	uint8_t contact = 0;
+
+	if (px < 0 || px >= sx) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+	else if (py < 0 || py >= sy) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+	else if (pz < 0 || pz >= sz) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+	const Vec3 pos(px, py, pz);
+	const Vec3 anisotropy(wx, wy, wz);
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	std::vector<Vec3> pts;
+	pts.reserve(6);
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
+	contact = 0;
+
+	for (uint64_t z = 0; z < sz; z++) {
+		for (uint64_t y = 0; y < sy; y++) {
+			for (uint64_t x = 0; x < sx; x++) {
+				uint64_t loc = x + sx * (y + sy * z);
+
+				if (!binimg[loc]) {
+					continue;
+				}
+
+				contact |= (x < 1); // -x
+				contact |= (x >= sx - 1) << 1; // +x
+				contact |= (y < 1) << 2; // -y
+				contact |= (y >= sy - 1) << 3; // +y
+				contact |= (z < 1) << 4; // -z
+				contact |= (z >= sz - 1) << 5; // +z
+
+				check_intersections(
+					pts, 
+					x, y, z, 
+					pos, normal, 
+					projections, inv_projections
+				);
+
+				plane_visualization[loc] = xs3d::area::points_to_area(pts, anisotropy, normal);
+			}
+		}
+	}
+
 
 	return std::make_tuple(plane_visualization, contact);
 }
@@ -678,6 +770,10 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		stack.push(ploc);
 	}
 
+	const float sxf = static_cast<float>(sx) - 0.5;
+	const float syf = static_cast<float>(sy) - 0.5;
+	const float szf = static_cast<float>(sz) - 0.5;
+
 	while (!stack.empty()) {
 		ploc = stack.top();
 		stack.pop();
@@ -697,15 +793,17 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		Vec3 delta = basis1 * dx + basis2 * dy;
 		Vec3 cur = pos + delta;
 
-		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
 			continue;
 		}
-		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
 			continue;
 		}
 		else if (delta.norm2() >= crop_distance_sq) {
 			continue;
 		}
+
+		cur = cur.round();
 
 		bbx.x_min = std::min(bbx.x_min, static_cast<int64_t>(x));
 		bbx.x_max = std::max(bbx.x_max, static_cast<int64_t>(x));
