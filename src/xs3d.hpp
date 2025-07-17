@@ -24,25 +24,6 @@ const Vec3 ihat = Vec3(1,0,0);
 const Vec3 jhat = Vec3(0,1,0);
 const Vec3 khat = Vec3(0,0,1);
 
-const Vec3 c[8] = {
-	Vec3(0, 0, 0), // 0
-	Vec3(0, 0, 1), // 1 
-	Vec3(0, 1, 0), // 2 
-	Vec3(0, 1, 1), // 3
-	Vec3(1, 0, 0), // 4
-	Vec3(1, 0, 1), // 5
-	Vec3(1, 1, 0), // 6
-	Vec3(1, 1, 1) // 7
-};
-
-const Vec3 pipes[3] = {
-	ihat, jhat, khat
-};
-
-const Vec3 pipe_points[4] = {
-	c[0], c[3], c[5], c[6]
-};
-
 uint16_t check_intersections_2x2x2(
 	std::vector<Vec3>& pts,
 	const uint64_t x, const uint64_t y, const uint64_t z,
@@ -186,6 +167,26 @@ void check_intersections_1x1x1(
 	const std::vector<float>& projections, 
 	const std::vector<float>& inv_projections
 ) {
+
+	static const Vec3 c[8] = {
+		Vec3(0, 0, 0), // 0
+		Vec3(0, 0, 1), // 1 
+		Vec3(0, 1, 0), // 2 
+		Vec3(0, 1, 1), // 3
+		Vec3(1, 0, 0), // 4
+		Vec3(1, 0, 1), // 5
+		Vec3(1, 1, 0), // 6
+		Vec3(1, 1, 1) // 7
+	};
+
+	static const Vec3 pipes[3] = {
+		ihat, jhat, khat
+	};
+
+	static const Vec3 pipe_points[4] = {
+		c[0], c[3], c[5], c[6]
+	};
+
 	pts.clear();
 
 	Vec3 minpt(x,y,z);
