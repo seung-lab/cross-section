@@ -592,9 +592,9 @@ float robust_calc_area_at_point_2x2x2(
 	const std::vector<float>& inv_projections
 ) {
 
-	uint64_t x = static_cast<uint64_t>(cur.x) & ~1;
-	uint64_t y = static_cast<uint64_t>(cur.y) & ~1;
-	uint64_t z = static_cast<uint64_t>(cur.z) & ~1;
+	uint64_t x = static_cast<uint64_t>(cur.x) & ~static_cast<uint64_t>(1);
+	uint64_t y = static_cast<uint64_t>(cur.y) & ~static_cast<uint64_t>(1);
+	uint64_t z = static_cast<uint64_t>(cur.z) & ~static_cast<uint64_t>(1);
 
 	float subtotal = 0.0;
 
@@ -717,6 +717,10 @@ float cross_sectional_area_helper_2x2x2(
 			: 1.0 / projections[i];
 	}
 
+	const float sxf = static_cast<float>(sx) - 0.5;
+	const float syf = static_cast<float>(sy) - 0.5;
+	const float szf = static_cast<float>(sz) - 0.5;
+
 	while (!stack.empty()) {
 		ploc = stack.top();
 		stack.pop();
@@ -735,15 +739,21 @@ float cross_sectional_area_helper_2x2x2(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		if (cur.x < 0 || cur.y < 0 || cur.z < 0) {
+		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
 			continue;
 		}
-		else if (cur.x >= sx || cur.y >= sy || cur.z >= sz) {
+		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
 			continue;
 		}
 
-		uint64_t loc = static_cast<uint64_t>(cur.x) + sx * (
-			static_cast<uint64_t>(cur.y) + sy * static_cast<uint64_t>(cur.z)
+		cur = cur.round();
+
+		uint64_t loc = (
+			static_cast<uint64_t>(cur.x)
+			+ sx * (
+				static_cast<uint64_t>(cur.y)
+				+ sy * static_cast<uint64_t>(cur.z)
+			)
 		);
 
 		if (!binimg[loc]) {
@@ -751,11 +761,11 @@ float cross_sectional_area_helper_2x2x2(
 		}
 
 		contact |= (cur.x < 1); // -x
-		contact |= (cur.x >= sx - 1) << 1; // +x
+		contact |= (cur.x >= sx - 1.5) << 1; // +x
 		contact |= (cur.y < 1) << 2; // -y
-		contact |= (cur.y >= sy - 1) << 3; // +y
+		contact |= (cur.y >= sy - 1.5) << 3; // +y
 		contact |= (cur.z < 1) << 4; // -z
-		contact |= (cur.z >= sz - 1) << 5; // +z
+		contact |= (cur.z >= sz - 1.5) << 5; // +z
 
 		uint64_t up = ploc - psx; 
 		uint64_t down = ploc + psx;
@@ -860,6 +870,10 @@ float cross_sectional_area_helper(
 			: 1.0 / projections[i];
 	}
 
+	const float sxf = static_cast<float>(sx) - 0.5;
+	const float syf = static_cast<float>(sy) - 0.5;
+	const float szf = static_cast<float>(sz) - 0.5;
+
 	while (!stack.empty()) {
 		ploc = stack.top();
 		stack.pop();
@@ -881,7 +895,7 @@ float cross_sectional_area_helper(
 		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
 			continue;
 		}
-		else if (cur.x >= (sx - 0.5) || cur.y >= (sy - 0.5) || cur.z >= (sz - 0.5)) {
+		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
 			continue;
 		}
 
