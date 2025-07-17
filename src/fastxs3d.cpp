@@ -14,7 +14,8 @@ auto section(
 	const py::array_t<uint8_t> &binimg,
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
-	const py::array_t<float> &anisotropy
+	const py::array_t<float> &anisotropy,
+	const bool slow_method
 ) {
 	const uint64_t sx = binimg.shape()[0];
 	const uint64_t sy = binimg.ndim() < 2
@@ -30,14 +31,28 @@ auto section(
     float* data = static_cast<float*>(arr.request().ptr);
     std::fill(data, data + voxels, 0.0f);
 
-	std::tuple<float*, uint8_t> tup = xs3d::cross_section(
-		binimg.data(),
-		sx, sy, sz,
-		point.at(0), point.at(1), point.at(2),
-		normal.at(0), normal.at(1), normal.at(2),
-		anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-		data
-	);
+	std::tuple<float*, uint8_t> tup;
+
+	if (slow_method) {
+		tup = xs3d::cross_section_slow(
+			binimg.data(),
+			sx, sy, sz,
+			point.at(0), point.at(1), point.at(2),
+			normal.at(0), normal.at(1), normal.at(2),
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			data
+		);
+	}
+	else {
+		 tup = xs3d::cross_section(
+			binimg.data(),
+			sx, sy, sz,
+			point.at(0), point.at(1), point.at(2),
+			normal.at(0), normal.at(1), normal.at(2),
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			data
+		);
+	}
 
 	return std::make_tuple(arr, std::get<1>(tup));
 }
