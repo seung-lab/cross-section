@@ -1012,11 +1012,14 @@ float cross_sectional_area(
 		return 0.0;
 	}
 
-	uint64_t loc = static_cast<uint64_t>(px) + sx * (
-		static_cast<uint64_t>(py) + sy * static_cast<uint64_t>(pz)
+	uint64_t loc = static_cast<uint64_t>(std::round(px)) + sx * (
+		static_cast<uint64_t>(std::round(py)) + sy * static_cast<uint64_t>(std::round(pz))
 	);
 
-	if (!binimg[loc]) {
+	if (loc < 0 || loc >= sx * sy * sz) {
+		return 0.0;
+	}
+	else if (!binimg[loc]) {
 		return 0.0;
 	}
 
