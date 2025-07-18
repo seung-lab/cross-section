@@ -137,7 +137,7 @@ void sorting_network<6>(
 	CMP_SWAP(2,5)
 	CMP_SWAP(0,1)
 	CMP_SWAP(2,3)
-	CMP_SWAP_FAST(4,5)
+	CMP_SWAP(4,5)
 	CMP_SWAP_FAST(1,2)
 	CMP_SWAP_FAST(3,4)
 }
