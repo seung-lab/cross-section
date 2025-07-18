@@ -1159,6 +1159,81 @@ std::tuple<float*, uint8_t> cross_section(
 	return std::make_tuple(plane_visualization, contact);
 }
 
+std::tuple<float*, uint8_t> cross_section_slow_2x2x2(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	
+	const float px, const float py, const float pz,
+	const float nx, const float ny, const float nz,
+	const float wx, const float wy, const float wz,
+	float* plane_visualization = NULL
+) {
+	const uint64_t grid_size = std::max((sx * sy * sz + 7) >> 3, static_cast<uint64_t>(1));
+
+	if (plane_visualization == NULL) {
+		plane_visualization = new float[grid_size]();
+	}
+
+	uint8_t contact = 0;
+
+	if (px < 0 || px >= sx) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+	else if (py < 0 || py >= sy) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+	else if (pz < 0 || pz >= sz) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+	const Vec3 pos(px, py, pz);
+	const Vec3 anisotropy(wx, wy, wz);
+	Vec3 normal(nx, ny, nz);
+	normal /= normal.norm();
+
+	std::vector<Vec3> pts;
+	pts.reserve(6);
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
+	contact = 0;
+
+	for (uint64_t z = 0; z < sz; z += 2) {
+		for (uint64_t y = 0; y < sy; y += 2) {
+			for (uint64_t x = 0; x < sx; x += 2) {
+				uint64_t loc = x + sx * (y + sy * z);
+				uint64_t ploc = (x >> 1) + ((sx+1) >> 1) * ((y >> 1) + ((sy+1) >> 1) * (z >> 1));
+
+				if (!binimg[loc]) {
+					continue;
+				}
+
+				check_intersections_2x2x2(
+					pts, 
+					x, y, z, 
+					pos, normal, 
+					projections, inv_projections
+				);
+
+				plane_visualization[ploc] = xs3d::area::points_to_area(pts, anisotropy, normal);
+			}
+		}
+	}
+
+	return std::make_tuple(plane_visualization, contact);
+}
+
+
 std::tuple<float*, uint8_t> cross_section_slow(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
