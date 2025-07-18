@@ -41,6 +41,11 @@ public:
 		y -= other.y;
 		z -= other.z;
 	}
+	void operator-=(const float scalar) {
+		x -= scalar;
+		y -= scalar;
+		z -= scalar;
+	}
 	Vec3 operator*(const float scalar) const {
 		return Vec3(x * scalar, y * scalar, z * scalar);
 	}
