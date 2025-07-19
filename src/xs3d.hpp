@@ -670,7 +670,7 @@ float cross_sectional_area_helper_2x2x2(
 	const Vec3& anisotropy, // anisotropy
 	uint8_t& contact
 ) {
-	const uint64_t grid_size = std::max((sx * sy * sz + 7) >> 3, static_cast<uint64_t>(1));
+	const uint64_t grid_size = std::max(((sx+1)>>1) * ((sy+1)>>1) * ((sz+1)>>1), static_cast<uint64_t>(1));
 	std::vector<bool> ccl(grid_size);
 
 	// rational approximation of sqrt(3) is 97/56
