@@ -72,7 +72,11 @@ def cross_sectional_area(
   if binimg.ndim == 2:
     area, contact = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
   elif binimg.ndim == 3:
-    area, contact = fastxs3d.area(binimg, pos, normal, anisotropy, slow_method)
+    area, contact = fastxs3d.area(
+      binimg.view(np.uint8),
+      pos, normal, anisotropy, 
+      slow_method
+    )
   else:
     raise ValueError("dimensions not supported")
 
@@ -141,7 +145,11 @@ def cross_section(
   if binimg.ndim != 3:
     raise ValueError("dimensions not supported")
   
-  section, contact = fastxs3d.section(binimg, pos, normal, anisotropy, method)
+  section, contact = fastxs3d.section(
+    binimg.view(np.uint8), 
+    pos, normal, anisotropy, 
+    method,
+  )
 
   if return_contact:
     return (section, contact)
