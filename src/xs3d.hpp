@@ -414,6 +414,14 @@ float calc_area_at_point(
 				delta.y = std::round(delta.y);
 				delta.z = std::round(delta.z);
 
+				if (
+					   delta.x < 0 || delta.x >= sx 
+					|| delta.y < 0 || delta.y >= sy 
+					|| delta.z < 0 || delta.z >= sz
+				) {
+					continue;
+				}
+
 				uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
 					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
 				);
