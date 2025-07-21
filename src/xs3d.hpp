@@ -780,8 +780,8 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
 				);
 
-				const uint64_t visited_loc =  (static_cast<uint64_t>(delta.x) >> 1) + ((sx+1) >> 1) * (
-					(static_cast<uint64_t>(delta.y) >> 1) + ((sy+1) >> 1) * (static_cast<uint64_t>(delta.z) >> 1)
+				const uint64_t visited_loc =  (static_cast<uint64_t>(delta.x) >> 1) + _h(sx) * (
+					(static_cast<uint64_t>(delta.y) >> 1) + _h(sy) * (static_cast<uint64_t>(delta.z) >> 1)
 				);
 
 				if (!binimg[loc] || visited[visited_loc] == color) {
