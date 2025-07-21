@@ -1148,7 +1148,10 @@ std::tuple<float*, uint8_t> cross_section(
 		static_cast<uint64_t>(std::round(py)) + sy * static_cast<uint64_t>(std::round(pz))
 	);
 
-	if (!binimg[loc]) {
+	if (loc < 0 || loc >= sx * sy * sz) {
+		return 0.0;
+	}
+	else if (!binimg[loc]) {
 		return std::make_tuple(plane_visualization, contact);
 	}
 
