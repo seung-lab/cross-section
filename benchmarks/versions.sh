@@ -3,7 +3,7 @@
 XS_DIR=$HOME/code/cross-section
 BENCHMARKS_DIR="$XS_DIR/benchmarks"
 BIN_DIR=$BENCHMARKS_DIR/bin
-LOGFILE=$BENCHMARKS_DIR/version_timings.log
+LOGFILE=$BENCHMARKS_DIR/version_timings_current.log
 
 mkdir $BIN_DIR
 rm $BIN_DIR/*
