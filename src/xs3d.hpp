@@ -670,16 +670,17 @@ float robust_calc_area_at_point_2x2x2(
 	return subtotal;
 }
 
-float cross_sectional_area_helper_2x2x2(
+std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
-	const Vec3& anisotropy, // anisotropy
-	uint8_t& contact
+	const Vec3& anisotropy
 ) {
 	const uint64_t grid_size = std::max(((sx+1)>>1) * ((sy+1)>>1) * ((sz+1)>>1), static_cast<uint64_t>(1));
 	std::vector<bool> ccl(grid_size);
+
+	uint8_t contact;
 
 	// rational approximation of sqrt(3) is 97/56
 	// more reliable behavior across compilers/architectures
@@ -820,7 +821,7 @@ float cross_sectional_area_helper_2x2x2(
 		);
 	}
 
-	return total;
+	return std::make_tuple(total, contact);
 }
 
 float cross_sectional_area_helper(
@@ -1000,24 +1001,23 @@ struct Bbox2d {
 	}
 };
 
-float cross_sectional_area(
+std::tuple<float, uint8_t> cross_sectional_area(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
-	const float wx, const float wy, const float wz,
-	uint8_t &contact = _dummy_contact 
+	const float wx, const float wy, const float wz
 ) {
 
 	if (px < 0 || px >= sx) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 	else if (py < 0 || py >= sy) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 	else if (pz < 0 || pz >= sz) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 
 	const Vec3 pos(px, py, pz);
@@ -1028,7 +1028,7 @@ float cross_sectional_area(
 		|| rpos.y < 0 || rpos.y >= sy 
 		|| rpos.z < 0 || rpos.z >= sz
 	) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 
 	uint64_t loc = static_cast<uint64_t>(rpos.x) + sx * (
@@ -1036,10 +1036,10 @@ float cross_sectional_area(
 	);
 
 	if (loc < 0 || loc >= sx * sy * sz) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 	else if (!binimg[loc]) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 
 	const Vec3 anisotropy(wx, wy, wz);
@@ -1049,8 +1049,7 @@ float cross_sectional_area(
 	return cross_sectional_area_helper_2x2x2(
 		binimg, 
 		sx, sy, sz, 
-		pos, normal, anisotropy,
-		contact
+		pos, normal, anisotropy
 	);
 }
 

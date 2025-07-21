@@ -94,31 +94,24 @@ auto calculate_area(
 		? 1 
 		: binimg.shape()[2];
 
-	uint8_t contact = false;
-	float area = 0;
-
 	if (slow_method) {
-		area = xs3d::cross_sectional_area_slow(
+		return xs3d::cross_sectional_area_slow(
 			binimg.data(),
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
-			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-			contact
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2)
 		);
 	}
 	else {
-		area = xs3d::cross_sectional_area(
+		return xs3d::cross_sectional_area(
 			binimg.data(),
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
-			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
-			contact
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2)
 		);
 	}
-
-	return std::tuple(area, contact);
 }
 
 auto projection(	
