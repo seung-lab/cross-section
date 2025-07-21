@@ -281,8 +281,8 @@ def test_moving_window(off, normal):
     initial_area = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal)
     initial_area_slow = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal, slow_method=True)
 
-    xs = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, slow_method=False)
-    xs2 = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, slow_method=True)
+    xs = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, method=0)
+    xs2 = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, method=1)
 
     assert np.isclose(initial_area, initial_area_slow)
     assert np.isclose(xs.sum(), xs2.sum())
@@ -295,7 +295,8 @@ def test_moving_window(off, normal):
         assert np.isclose(area, initial_area)
 
 
-def test_cross_section():
+@pytest.mark.parametrize("method", [0,1])
+def test_cross_section(method):
     labels = np.ones((5,5,5), dtype=bool, order="F")
     pos = (2, 2, 2)
 
@@ -305,7 +306,7 @@ def test_cross_section():
     for theta in range(0,25):
         normal = angle(theta / 25 * 2 * np.pi)
         area = xs3d.cross_sectional_area(labels, pos, normal)
-        image = xs3d.cross_section(labels, pos, normal)
+        image = xs3d.cross_section(labels, pos, normal, method=method)
         assert image.dtype == np.float32
         assert np.isclose(image.sum(), area)
 
