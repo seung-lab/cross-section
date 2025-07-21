@@ -20,6 +20,96 @@ namespace {
 
 static uint8_t _dummy_contact = false;
 
+uint8_t compute_cube(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const uint64_t x, const uint64_t y, const uint64_t z
+) {
+	const uint64_t sxy = sx * sy;
+	const uint64_t loc = x + sx * (y + sy * z);
+
+	return static_cast<uint8_t>(
+		(binimg[loc] > 0)
+		| (((x < sx - 1) && (binimg[loc+1] > 0)) << 1)
+		| (((y < sy - 1) && (binimg[loc+sx] > 0)) << 2)
+		| (((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0)) << 3)
+		| (((z < sz - 1) && (binimg[loc+sxy] > 0)) << 4)
+		| (((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0)) << 5)
+		| (((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0)) << 6)
+		| (((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0)) << 7)
+	);
+}
+
+struct PersistentShapeManager {
+	std::vector<uint8_t> visited;
+	std::vector<uint8_t> cubes;
+	uint64_t sx, sy, sz;
+	T color;
+
+	PersistentShapeManager(const uint8_t* binimg, const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
+		init(binimg, _sx, _sy, _sz);
+		color = 1;
+	}
+
+	void init(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
+		sx = _sx;
+		sy = _sy;
+		sz = _sz;
+		precompute_cubes(binimg);
+		visited.resize(this->voxels());
+	}
+
+	void precompute_cubes(uint8_t* binimg) {
+		cubes.resize(
+			((sx+1) >> 1)
+			* ((sy+1) >> 1)
+			* ((sz+1) >> 1)
+		);
+
+		uint64_t i = 0;
+		for (uint64_t z = 0; z < sz; z += 2) {
+			for (uint64_t y = 0; y < sy; y += 2) {
+				for (uint64_t x = 0; x < sx; x += 2, i++) {
+					cubes[i] = compute_cube(binimg, sx, sy, sz, x, y, z);
+				}
+			}
+		}
+	}
+
+	void clear() {
+		sx = 0;
+		sy = 0;
+		sz = 0;
+		color = 1;
+		visited = std::vector<T>[0]();
+		cubes = std::vector<uint8_t>[0]();
+	}
+
+	void next(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
+		sx = _sx;
+		sy = _sy;
+		sz = _sz;
+		next_color();
+		visited.resize(this->voxels());
+	}
+
+	uint64_t voxels() {
+		return sx * sy * sz;
+	}
+
+	uint8_t next_color() {
+		color++;
+		if (color == 0) {
+			std::fill(visited.begin(), visited.end(), 0);
+			color = 1;
+		}
+
+		return color;
+	}
+};
+
+PersistentShapeManager persistent_data;
+
 const Vec3 ihat = Vec3(1,0,0);
 const Vec3 jhat = Vec3(0,1,0);
 const Vec3 khat = Vec3(0,0,1);
@@ -457,26 +547,6 @@ float calc_area_at_point(
 	}
 
 	return subtotal;
-}
-
-uint8_t compute_cube(
-	const uint8_t* binimg,
-	const uint64_t sx, const uint64_t sy, const uint64_t sz,
-	const uint64_t x, const uint64_t y, const uint64_t z
-) {
-	const uint64_t sxy = sx * sy;
-	const uint64_t loc = x + sx * (y + sy * z);
-
-	return static_cast<uint8_t>(
-		(binimg[loc] > 0)
-		| (((x < sx - 1) && (binimg[loc+1] > 0)) << 1)
-		| (((y < sy - 1) && (binimg[loc+sx] > 0)) << 2)
-		| (((x < sx - 1 && y < sy - 1) && (binimg[loc+sx+1] > 0)) << 3)
-		| (((z < sz - 1) && (binimg[loc+sxy] > 0)) << 4)
-		| (((x < sx - 1 && z < sz - 1) && (binimg[loc+sxy+1] > 0)) << 5)
-		| (((y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx] > 0)) << 6)
-		| (((x < sx - 1 && y < sy - 1 && z < sz - 1) && (binimg[loc+sxy+sx+1] > 0)) << 7)
-	);
 }
 
 bool is_26_connected(
@@ -1000,6 +1070,18 @@ struct Bbox2d {
 		printf("Bbox2d(%lld, %lld, %lld, %lld)\n", x_min, x_max, y_min, y_max);
 	}
 };
+
+
+void set_shape(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz
+) {
+	persistent_data.init(binimg, sx, sy, sz);
+}
+
+void clear_shape() {
+	persistent_data.clear();
+}
 
 std::tuple<float, uint8_t> cross_sectional_area(
 	const uint8_t* binimg,
