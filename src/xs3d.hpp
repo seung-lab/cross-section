@@ -68,7 +68,7 @@ struct PersistentShapeManager {
 
 	void maybe_grow(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
 		if (sx * sy * sz < _sx * _sy * _sz) {
-			init(_sx, _sy, sz);
+			init(_sx, _sy, _sz);
 		}
 	}
 
