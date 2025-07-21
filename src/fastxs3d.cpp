@@ -221,19 +221,6 @@ PYBIND11_MODULE(fastxs3d, m) {
 	m.def("section", &section, "Return a floating point image that shows the voxels contributing area to a cross section.");
 	m.def("area", &calculate_area, "Find the cross sectional area for a given binary image, point, and normal vector.");
 	
-	m.def("set_shape", [](py::array_t<uint8_t> &binimg) {
-			py::buffer_info buf = binimg.request();
-			if (buf.ndim > 3) {
-				throw std::runtime_error("Number of dimensions must be <= 3");
-			}
-			const uint64_t sx = buf.shape[0];
-			const uint64_t sy = (buf.ndim >= 2) ? buf.shape[1] : 1;
-			const uint64_t sz = (buf.ndim >= 3) ? buf.shape[2] : 1;
-			xs3d::set_shape(static_cast<uint8_t*>(buf.ptr), sx, sy, sz);
-		}, 
-		py::arg("binimg"), 
-		"Accelerate the area function across many evaluation points by saving some attributes of the input shape upfront. Call clear_shape when you are done."
-	);
-
+	m.def("set_shape", &xs3d::set_shape, "Accelerate the area function across many evaluation points by saving some attributes of the input shape upfront. Call clear_shape when you are done.");
 	m.def("clear_shape", &xs3d::clear_shape, "Delete the data that was persisted by set_shape.");
 }

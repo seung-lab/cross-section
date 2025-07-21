@@ -48,6 +48,12 @@ def cross_sectional_area(
     all locations are visited. Does not restrict analysis
     to a single connected component.
 
+  use_persistent_data: Use a pre-allocated buffer for
+    internally tacking visited positions. You allocate the
+    buffer with xs3d.set_shape and clear it with xs3d.clear_shape.
+    This can save about 20% of the time when repeatedly
+    analyzing a shape.
+
   Returns: physical area covered by the section plane
   """
   if anisotropy is None:
@@ -225,11 +231,19 @@ def slice(
     crop
   )
 
+def set_shape(image:npt.NDArray[np.integer]):
+  """
+  Allocate a buffer appropriately sized to this image for internal use.
+  This can accelerate the area calculation if there are repeated queries
+  against the same shape.
 
-def set_shape(binimg):
-  fastxs3d.set_shape(binimg)
+  It is very important that the persisted shape match the current input
+  or memory issues can result.
+  """
+  fastxs3d.set_shape(image.shape[0], image.shape[1], image.shape[2])
 
 def clear_shape():
+  """Free the persisted memory from set_shape."""
   fastxs3d.clear_shape()
 
 

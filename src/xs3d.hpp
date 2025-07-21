@@ -46,7 +46,6 @@ uint8_t compute_cube(
 
 struct PersistentShapeManager {
 	std::vector<uint8_t> visited;
-	std::vector<uint8_t> cubes;
 	uint64_t sx, sy, sz;
 	uint8_t color;
 
@@ -55,30 +54,16 @@ struct PersistentShapeManager {
 		color = 0;
 	}
 
-	void init(const uint8_t* binimg, const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
+	void init(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
 		sx = _sx;
 		sy = _sy;
 		sz = _sz;
-		precompute_cubes(binimg);
 		visited.resize(this->eighth_voxels());
 	}
 
-	uint8_t get_cube(const uint64_t x, const uint64_t y, const uint64_t z) {
-		return cubes[
-			_h(x) + _h(sx) * (_h(y) + _h(sy) * _h(z))
-		];
-	}
-
-	void precompute_cubes(const uint8_t* binimg) {
-		cubes.resize(this->eighth_voxels());
-
-		uint64_t i = 0;
-		for (uint64_t z = 0; z < sz; z += 2) {
-			for (uint64_t y = 0; y < sy; y += 2) {
-				for (uint64_t x = 0; x < sx; x += 2, i++) {
-					cubes[i] = compute_cube(binimg, sx, sy, sz, x, y, z);
-				}
-			}
+	void maybe_grow(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
+		if (sx * sy * sz < _sx * _sy * _sz) {
+			init(_sx, _sy, sz);
 		}
 	}
 
@@ -88,7 +73,6 @@ struct PersistentShapeManager {
 		sz = 0;
 		color = 0;
 		visited = std::vector<uint8_t>();
-		cubes = std::vector<uint8_t>();
 	}
 
 	uint64_t eighth_voxels() {
@@ -776,9 +760,9 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 		ze = 0;		
 	}
 
-	const uint8_t center = persistent_data.get_cube(x,y,z);
+	const uint8_t center = compute_cube(binimg, sx, sy, sz, x, y, z);
 	std::vector<uint8_t>& visited = persistent_data.visited;
-	uint8_t color = persistent_data.color;
+	const uint8_t color = persistent_data.color;
 
 	for (int64_t zi = zs; zi <= ze; zi += 2) {
 		for (int64_t yi = ys; yi <= ye; yi += 2) {
@@ -800,8 +784,8 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 				}
 				
 				visited[visited_loc] = color;
-					
-				uint8_t candidate = persistent_data.get_cube(x+xi, y+yi, z+zi);
+				
+				const uint8_t candidate = compute_cube(binimg, sx, sy, sz, x + xi, y + yi, z + zi);
 
 				if (is_26_connected(center, candidate, xi, yi, zi)) {
 					subtotal += calc_area_at_point_2x2x2(
@@ -980,6 +964,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
 	const Vec3& normal, // plane normal vector
 	const Vec3& anisotropy
 ) {
+	persistent_data.maybe_grow(sx, sy, sz);
 	persistent_data.next_color();
 
 	uint8_t contact = 0;
@@ -1304,12 +1289,10 @@ struct Bbox2d {
 	}
 };
 
-
 void set_shape(
-	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz
 ) {
-	persistent_data.init(binimg, sx, sy, sz);
+	persistent_data.init(sx, sy, sz);
 }
 
 void clear_shape() {
