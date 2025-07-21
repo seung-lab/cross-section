@@ -20,6 +20,10 @@ namespace {
 
 static uint8_t _dummy_contact = false;
 
+uint64_t _h(uint64_t a) { 
+	return ((a+1) >> 1); 
+};
+
 uint8_t compute_cube(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -44,27 +48,29 @@ struct PersistentShapeManager {
 	std::vector<uint8_t> visited;
 	std::vector<uint8_t> cubes;
 	uint64_t sx, sy, sz;
-	T color;
+	uint8_t color;
 
-	PersistentShapeManager(const uint8_t* binimg, const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
-		init(binimg, _sx, _sy, _sz);
-		color = 1;
+	PersistentShapeManager() {
+		sx = 0; sy = 0; sz = 0;
+		color = 0;
 	}
 
-	void init(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
+	void init(const uint8_t* binimg, const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
 		sx = _sx;
 		sy = _sy;
 		sz = _sz;
 		precompute_cubes(binimg);
-		visited.resize(this->voxels());
+		visited.resize(this->eighth_voxels());
 	}
 
-	void precompute_cubes(uint8_t* binimg) {
-		cubes.resize(
-			((sx+1) >> 1)
-			* ((sy+1) >> 1)
-			* ((sz+1) >> 1)
-		);
+	uint8_t get_cube(const uint64_t x, const uint64_t y, const uint64_t z) {
+		return cubes[
+			_h(x) + _h(sx) * (_h(y) + _h(sy) * _h(z))
+		];
+	}
+
+	void precompute_cubes(const uint8_t* binimg) {
+		cubes.resize(this->eighth_voxels());
 
 		uint64_t i = 0;
 		for (uint64_t z = 0; z < sz; z += 2) {
@@ -80,21 +86,13 @@ struct PersistentShapeManager {
 		sx = 0;
 		sy = 0;
 		sz = 0;
-		color = 1;
-		visited = std::vector<T>[0]();
-		cubes = std::vector<uint8_t>[0]();
+		color = 0;
+		visited = std::vector<uint8_t>();
+		cubes = std::vector<uint8_t>();
 	}
 
-	void next(const uint64_t _sx, const uint64_t _sy, const uint64_t _sz) {
-		sx = _sx;
-		sy = _sy;
-		sz = _sz;
-		next_color();
-		visited.resize(this->voxels());
-	}
-
-	uint64_t voxels() {
-		return sx * sy * sz;
+	uint64_t eighth_voxels() {
+		return _h(sx) * _h(sy) * _h(sz);
 	}
 
 	uint8_t next_color() {
@@ -740,6 +738,87 @@ float robust_calc_area_at_point_2x2x2(
 	return subtotal;
 }
 
+float robust_calc_area_at_point_2x2x2_persistent_data(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& cur, const Vec3& pos, 
+	const Vec3& normal, const Vec3& anisotropy,
+	std::vector<Vec3>& pts, 
+	const std::vector<float>& projections, 
+	const std::vector<float>& inv_projections
+) {
+
+	uint64_t x = static_cast<uint64_t>(cur.x) & ~static_cast<uint64_t>(1);
+	uint64_t y = static_cast<uint64_t>(cur.y) & ~static_cast<uint64_t>(1);
+	uint64_t z = static_cast<uint64_t>(cur.z) & ~static_cast<uint64_t>(1);
+
+	float subtotal = 0.0;
+
+	float xs = (cur.x - 2) >= 0 ? -2 : 0;
+	float ys = (cur.y - 2) >= 0 ? -2 : 0;
+	float zs = (cur.z - 2) >= 0 ? -2 : 0;
+
+	float xe = (cur.x + 2) < sx ? 2 : 0;
+	float ye = (cur.y + 2) < sy ? 2 : 0;
+	float ze = (cur.z + 2) < sz ? 2 : 0;
+	
+	// only need to check around the current voxel if
+	// there's a possibility that there is a gap due
+	// to basis vector motion. If the normal is axis
+	// aligned to x, y, or z, there will be no gap.
+	if (normal.is_axis_aligned()) {
+		xs = 0;
+		ys = 0;
+		zs = 0;
+
+		xe = 0;
+		ye = 0;
+		ze = 0;		
+	}
+
+	const uint8_t center = persistent_data.get_cube(x,y,z);
+	std::vector<uint8_t>& visited = persistent_data.visited;
+	uint8_t color = persistent_data.color;
+
+	for (int64_t zi = zs; zi <= ze; zi += 2) {
+		for (int64_t yi = ys; yi <= ye; yi += 2) {
+			for (int64_t xi = xs; xi <= xe; xi += 2) {
+				
+				Vec3 delta(xi,yi,zi);
+				delta += cur;
+
+				const uint64_t loc = static_cast<uint64_t>(delta.x) + sx * (
+					static_cast<uint64_t>(delta.y) + sy * static_cast<uint64_t>(delta.z)
+				);
+
+				const uint64_t visited_loc =  (static_cast<uint64_t>(delta.x) >> 1) + ((sx+1) >> 1) * (
+					(static_cast<uint64_t>(delta.y) >> 1) + ((sy+1) >> 1) * (static_cast<uint64_t>(delta.z) >> 1)
+				);
+
+				if (!binimg[loc] || visited[visited_loc] == color) {
+					continue;
+				}
+				
+				visited[visited_loc] = color;
+					
+				uint8_t candidate = persistent_data.get_cube(x+xi, y+yi, z+zi);
+
+				if (is_26_connected(center, candidate, xi, yi, zi)) {
+					subtotal += calc_area_at_point_2x2x2(
+						candidate,
+						sx, sy, sz,
+						delta, pos, normal, anisotropy,
+						pts, 
+						projections, inv_projections
+					);
+				}
+			}
+		}
+	}
+
+	return subtotal;
+}
+
 std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -893,6 +972,160 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 
 	return std::make_tuple(total, contact);
 }
+
+std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
+	const uint8_t* binimg,
+	const uint64_t sx, const uint64_t sy, const uint64_t sz,
+	const Vec3& pos, // plane position
+	const Vec3& normal, // plane normal vector
+	const Vec3& anisotropy
+) {
+	persistent_data.next_color();
+
+	uint8_t contact;
+
+	// rational approximation of sqrt(3) is 97/56
+	// more reliable behavior across compilers/architectures
+	uint64_t plane_size = 2 * 97 * std::max(std::max(sx,sy), sz) / 56 + 1;
+
+	// maximum possible size of plane
+	uint64_t psx = plane_size;
+	uint64_t psy = psx;
+
+	std::vector<bool> visited(psx * psy);
+
+	Vec3 basis1 = normal.cross(ihat);
+	if (basis1.is_null()) {
+		basis1 = normal.cross(jhat);
+	}
+	basis1 /= basis1.norm();
+
+	Vec3 basis2 = normal.cross(basis1);
+	basis2 /= basis2.norm();
+
+	uint64_t plane_pos_x = plane_size / 2;
+	uint64_t plane_pos_y = plane_size / 2;
+
+	uint64_t ploc = plane_pos_x + psx * plane_pos_y;
+
+	std::stack<uint64_t> stack;
+	stack.push(ploc);
+
+	float total = 0.0;
+
+	std::vector<Vec3> pts;
+	pts.reserve(6);
+
+	const std::vector<float> projections = {
+		ihat.dot(normal),
+		jhat.dot(normal),
+		khat.dot(normal)
+	};
+
+	std::vector<float> inv_projections(3);
+	for (int i = 0; i < 3; i++) {
+		inv_projections[i] = (projections[i] == 0)
+			? 0
+			: 1.0 / projections[i];
+	}
+
+	const float sxf = static_cast<float>(sx) - 0.5;
+	const float syf = static_cast<float>(sy) - 0.5;
+	const float szf = static_cast<float>(sz) - 0.5;
+
+	while (!stack.empty()) {
+		ploc = stack.top();
+		stack.pop();
+
+		if (visited[ploc]) {
+			continue;
+		}
+
+		visited[ploc] = true;
+
+		uint64_t y = ploc / psx;
+		uint64_t x = ploc - y * psx;
+
+		float dx = static_cast<float>(x) - static_cast<float>(plane_pos_x);
+		float dy = static_cast<float>(y) - static_cast<float>(plane_pos_y);
+
+		Vec3 cur = pos + basis1 * dx + basis2 * dy;
+
+		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
+			continue;
+		}
+		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
+			continue;
+		}
+
+		cur = cur.round();
+
+		uint64_t loc = (
+			static_cast<uint64_t>(cur.x)
+			+ sx * (
+				static_cast<uint64_t>(cur.y)
+				+ sy * static_cast<uint64_t>(cur.z)
+			)
+		);
+
+		if (!binimg[loc]) {
+			continue;
+		}
+
+		contact |= (cur.x < 1); // -x
+		contact |= (cur.x >= sx - 1.5) << 1; // +x
+		contact |= (cur.y < 1) << 2; // -y
+		contact |= (cur.y >= sy - 1.5) << 3; // +y
+		contact |= (cur.z < 1) << 4; // -z
+		contact |= (cur.z >= sz - 1.5) << 5; // +z
+
+		uint64_t up = ploc - psx; 
+		uint64_t down = ploc + psx;
+		uint64_t left = ploc - 1;
+		uint64_t right = ploc + 1;
+
+		uint64_t upleft = ploc - psx - 1; 
+		uint64_t downleft = ploc + psx - 1;
+		uint64_t upright = ploc - psx + 1;
+		uint64_t downright = ploc + psx + 1;
+
+		if (x > 0 && !visited[left]) {
+			stack.push(left);
+		}
+		if (x < psx - 1 && !visited[right]) {
+			stack.push(right);
+		}
+		if (y > 0 && !visited[up]) {
+			stack.push(up);
+		}
+		if (y < psy - 1 && !visited[down]) {
+			stack.push(down);
+		}
+
+		if (x > 0 && y > 0 && !visited[upleft]) {
+			stack.push(upleft);
+		}
+		if (x < psx - 1 && y > 0 && !visited[upright]) {
+			stack.push(upright);
+		}
+		if (x > 0 && y < psy - 1 && !visited[downleft]) {
+			stack.push(downleft);
+		}
+		if (x < psx - 1 && y < psy - 1 && !visited[downright]) {
+			stack.push(downright);
+		}
+
+		total += robust_calc_area_at_point_2x2x2_persistent_data(
+			binimg,
+			sx, sy, sz,
+			cur, pos, normal, anisotropy,
+			pts, projections, inv_projections
+		);
+	}
+
+	return std::make_tuple(total, contact);
+}
+
 
 float cross_sectional_area_helper(
 	const uint8_t* binimg,
@@ -1089,7 +1322,8 @@ std::tuple<float, uint8_t> cross_sectional_area(
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
-	const float wx, const float wy, const float wz
+	const float wx, const float wy, const float wz,
+	const bool use_persistent_data = false
 ) {
 
 	if (px < 0 || px >= sx) {
@@ -1128,11 +1362,20 @@ std::tuple<float, uint8_t> cross_sectional_area(
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
 
-	return cross_sectional_area_helper_2x2x2(
-		binimg, 
-		sx, sy, sz, 
-		pos, normal, anisotropy
-	);
+	if (use_persistent_data) {
+		return cross_sectional_area_helper_2x2x2_persistent_data(
+			binimg, 
+			sx, sy, sz, 
+			pos, normal, anisotropy
+		);
+	}
+	else {
+		return cross_sectional_area_helper_2x2x2(
+			binimg, 
+			sx, sy, sz, 
+			pos, normal, anisotropy
+		);
+	}
 }
 
 std::tuple<float*, uint8_t> cross_section(
