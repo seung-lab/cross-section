@@ -281,8 +281,8 @@ def test_moving_window(off, normal):
     initial_area = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal)
     initial_area_slow = xs3d.cross_sectional_area(labels, [off//2, off//2, off//2], normal, slow_method=True)
 
-    xs = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, slow_method=False)
-    xs2 = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, slow_method=True)
+    xs = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, method=0)
+    xs2 = xs3d.cross_section(labels, [off//2, off//2, off//2], normal, method=1)
 
     assert np.isclose(initial_area, initial_area_slow)
     assert np.isclose(xs.sum(), xs2.sum())
