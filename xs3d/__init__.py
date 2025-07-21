@@ -15,6 +15,7 @@ def cross_sectional_area(
   anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
   slow_method:bool = False,
+  use_persistent_data:bool = False,
 ) -> Union[float, tuple[float, int]]:
   """
   Find the cross sectional area for a given binary image, 
@@ -75,7 +76,7 @@ def cross_sectional_area(
     area, contact = fastxs3d.area(
       binimg.view(np.uint8),
       pos, normal, anisotropy, 
-      slow_method
+      slow_method, use_persistent_data,
     )
   else:
     raise ValueError("dimensions not supported")
@@ -225,6 +226,11 @@ def slice(
   )
 
 
+def set_shape(binimg):
+  fastxs3d.set_shape(binimg)
+
+def clear_shape():
+  fastxs3d.clear_shape()
 
 
 

@@ -84,7 +84,8 @@ auto calculate_area(
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
 	const py::array_t<float> &anisotropy,
-	const bool slow_method
+	const bool slow_method,
+	const bool use_persistent_data
 ) {
 	const uint64_t sx = binimg.shape()[0];
 	const uint64_t sy = binimg.ndim() < 2
@@ -109,7 +110,8 @@ auto calculate_area(
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
-			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2)
+			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			use_persistent_data
 		);
 	}
 }
@@ -218,4 +220,20 @@ PYBIND11_MODULE(fastxs3d, m) {
 	m.def("projection", &projection, "Project a cross section of a 3D image onto a 2D plane");
 	m.def("section", &section, "Return a floating point image that shows the voxels contributing area to a cross section.");
 	m.def("area", &calculate_area, "Find the cross sectional area for a given binary image, point, and normal vector.");
+	
+	m.def("set_shape", [](py::array_t<uint8_t> &binimg) {
+			py::buffer_info buf = binimg.request();
+			if (buf.ndim > 3) {
+				throw std::runtime_error("Number of dimensions must be <= 3");
+			}
+			const uint64_t sx = buf.shape[0];
+			const uint64_t sy = (buf.ndim >= 2) ? buf.shape[1] : 1;
+			const uint64_t sz = (buf.ndim >= 3) ? buf.shape[2] : 1;
+			xs3d::set_shape(static_cast<uint8_t*>(buf.ptr), sx, sy, sz);
+		}, 
+		py::arg("binimg"), 
+		"Accelerate the area function across many evaluation points by saving some attributes of the input shape upfront. Call clear_shape when you are done."
+	);
+
+	m.def("clear_shape", &xs3d::clear_shape, "Delete the data that was persisted by set_shape.");
 }

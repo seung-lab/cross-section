@@ -829,7 +829,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 	const uint64_t grid_size = std::max(((sx+1)>>1) * ((sy+1)>>1) * ((sz+1)>>1), static_cast<uint64_t>(1));
 	std::vector<bool> ccl(grid_size);
 
-	uint8_t contact;
+	uint8_t contact = 0;
 
 	// rational approximation of sqrt(3) is 97/56
 	// more reliable behavior across compilers/architectures
@@ -982,7 +982,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
 ) {
 	persistent_data.next_color();
 
-	uint8_t contact;
+	uint8_t contact = 0;
 
 	// rational approximation of sqrt(3) is 97/56
 	// more reliable behavior across compilers/architectures
