@@ -1020,8 +1020,19 @@ float cross_sectional_area(
 		return 0.0;
 	}
 
-	uint64_t loc = static_cast<uint64_t>(std::round(px)) + sx * (
-		static_cast<uint64_t>(std::round(py)) + sy * static_cast<uint64_t>(std::round(pz))
+	const Vec3 pos(px, py, pz);
+	const Vec3 rpos = pos.round();
+
+	if (
+		   rpos.x < 0 || rpos.x >= sx 
+		|| rpos.y < 0 || rpos.y >= sy 
+		|| rpos.z < 0 || rpos.z >= sz
+	) {
+		return 0.0;
+	}
+
+	uint64_t loc = static_cast<uint64_t>(rpos.x) + sx * (
+		static_cast<uint64_t>(rpos.y) + sy * static_cast<uint64_t>(rpos.z)
 	);
 
 	if (loc < 0 || loc >= sx * sy * sz) {
@@ -1031,7 +1042,6 @@ float cross_sectional_area(
 		return 0.0;
 	}
 
-	const Vec3 pos(px, py, pz);
 	const Vec3 anisotropy(wx, wy, wz);
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
@@ -1064,6 +1074,16 @@ float cross_sectional_area_slow(
 ) {
 
 	const Vec3 pos(px, py, pz);
+	const Vec3 rpos = pos.round();
+
+	if (
+		   rpos.x < 0 || rpos.x >= sx 
+		|| rpos.y < 0 || rpos.y >= sy 
+		|| rpos.z < 0 || rpos.z >= sz
+	) {
+		return 0.0;
+	}
+
 	const Vec3 anisotropy(wx, wy, wz);
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
@@ -1144,18 +1164,28 @@ std::tuple<float*, uint8_t> cross_section(
 		return std::make_tuple(plane_visualization, contact);
 	}
 
-	uint64_t loc = static_cast<uint64_t>(std::round(px)) + sx * (
-		static_cast<uint64_t>(std::round(py)) + sy * static_cast<uint64_t>(std::round(pz))
+	const Vec3 pos(px, py, pz);
+	const Vec3 rpos = pos.round();
+
+	if (
+		   rpos.x < 0 || rpos.x >= sx 
+		|| rpos.y < 0 || rpos.y >= sy 
+		|| rpos.z < 0 || rpos.z >= sz
+	) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+
+	uint64_t loc = static_cast<uint64_t>(rpos.x) + sx * (
+		static_cast<uint64_t>(rpos.y) + sy * static_cast<uint64_t>(rpos.z)
 	);
 
 	if (loc < 0 || loc >= sx * sy * sz) {
-		return 0.0;
+		return std::make_tuple(plane_visualization, contact);
 	}
 	else if (!binimg[loc]) {
 		return std::make_tuple(plane_visualization, contact);
 	}
-
-	const Vec3 pos(px, py, pz);
+	
 	const Vec3 anisotropy(wx, wy, wz);
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
@@ -1197,6 +1227,16 @@ std::tuple<float*, uint8_t> cross_section_slow_2x2x2(
 		return std::make_tuple(plane_visualization, contact);
 	}
 	const Vec3 pos(px, py, pz);
+	const Vec3 rpos = pos.round();
+
+	if (
+		   rpos.x < 0 || rpos.x >= sx 
+		|| rpos.y < 0 || rpos.y >= sy 
+		|| rpos.z < 0 || rpos.z >= sz
+	) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+
 	const Vec3 anisotropy(wx, wy, wz);
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
@@ -1270,6 +1310,17 @@ std::tuple<float*, uint8_t> cross_section_slow(
 		return std::make_tuple(plane_visualization, contact);
 	}
 	const Vec3 pos(px, py, pz);
+
+	const Vec3 rpos = pos.round();
+
+	if (
+		   rpos.x < 0 || rpos.x >= sx 
+		|| rpos.y < 0 || rpos.y >= sy 
+		|| rpos.z < 0 || rpos.z >= sz
+	) {
+		return std::make_tuple(plane_visualization, contact);
+	}
+
 	const Vec3 anisotropy(wx, wy, wz);
 	Vec3 normal(nx, ny, nz);
 	normal /= normal.norm();
