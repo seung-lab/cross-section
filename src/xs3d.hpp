@@ -1627,6 +1627,6 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 
 };
 
-#include "aux.hpp"
+#include "auxiliary.hpp"
 
 #endif
