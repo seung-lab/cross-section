@@ -160,6 +160,7 @@ def test_8_connectivity():
     assert area == 1
 
 
+
 def test_sphere():
     d = 100
     r = d/2
@@ -187,8 +188,8 @@ def test_sphere():
 
     prev_area = xs3d.cross_sectional_area(img, pos, [1,0,0])
 
-    for theta in range(0,50):
-        normal = angle(theta / 50 * 2 * np.pi)
+    for theta in range(0,720):
+        normal = angle(theta / 720 * 2 * np.pi)
         area, contact = xs3d.cross_sectional_area(img, pos, normal, return_contact=True)
 
         assert area > np.pi * (r-0.5) * (r-0.5)
@@ -207,8 +208,8 @@ def test_sphere():
 
     prev_area = xs3d.cross_sectional_area(img, pos, [1,0,0])
 
-    for theta in range(0,50):
-        normal = angle2(theta / 50 * 2 * np.pi)
+    for theta in range(0,720):
+        normal = angle2(theta / 720 * 2 * np.pi)
         area = xs3d.cross_sectional_area(img, pos, normal)
 
         assert area > np.pi * (r-0.5) * (r-0.5)
@@ -218,6 +219,24 @@ def test_sphere():
 
         prev_area = area
 
+    def angle3(theta, phi):
+        return [ phi, np.cos(theta), np.sin(theta) ]
+
+    pos = (offset, offset, offset)
+
+    prev_area = xs3d.cross_sectional_area(img, pos, [1,0,0])
+
+    for theta in range(0, 1000):
+        for phi in range(0, 500):
+            normal = angle3(theta/1000, phi/500)
+            area = xs3d.cross_sectional_area(img, pos, normal)
+
+            assert area > np.pi * (r-0.5) * (r-0.5)
+            assert area <= np.pi * (r+0.5) * (r+0.5)
+            ratio = abs(area - prev_area) / area
+            assert ratio < smoothness
+
+            prev_area = area
 
 def test_off_angle():
     binimg = np.ones([2,2,2], dtype=bool)
