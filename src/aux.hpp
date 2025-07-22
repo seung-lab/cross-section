@@ -190,14 +190,13 @@ std::tuple<float*, uint8_t> cross_section_slow(
  * connected component, so pre-filtering must be performed to 
  * ensure a match.
  */
-float cross_sectional_area_slow(
+std::tuple<float, uint8_t> cross_sectional_area_slow(
 	const uint8_t* binimg,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
 	const float px, const float py, const float pz,
 	const float nx, const float ny, const float nz,
-	const float wx, const float wy, const float wz,
-	uint8_t &contact = _dummy_contact
+	const float wx, const float wy, const float wz
 ) {
 
 	const Vec3 pos(px, py, pz);
@@ -208,7 +207,7 @@ float cross_sectional_area_slow(
 		|| rpos.y < 0 || rpos.y >= sy 
 		|| rpos.z < 0 || rpos.z >= sz
 	) {
-		return 0.0;
+		return std::make_tuple(0.0, 0);
 	}
 
 	const Vec3 anisotropy(wx, wy, wz);
@@ -233,7 +232,7 @@ float cross_sectional_area_slow(
 			: 1.0 / projections[i];
 	}
 
-	contact = 0;
+	uint8_t contact = 0;
 
 	for (uint64_t z = 0; z < sz; z++) {
 		for (uint64_t y = 0; y < sy; y++) {
@@ -263,7 +262,7 @@ float cross_sectional_area_slow(
 		}
 	}
 
-	return area;
+	return std::make_tuple(area, contact);
 }
 
 };
