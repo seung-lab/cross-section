@@ -14,7 +14,7 @@ void perf() {
 	std::fill(binimg, binimg + voxels, 1);
 
 	for (int i = 0; i < sx; i++) {
-		float area = xs3d::cross_sectional_area(
+		auto area = xs3d::cross_sectional_area(
 			binimg,
 			sx, sy, sz,
 			/*px=*/i, /*py=*/sy/2, /*pz=*/sz/2,
