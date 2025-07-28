@@ -430,6 +430,39 @@ def test_off_axis_all_counted():
 
     assert np.isclose(fast_result, slow_result)
 
+def test_contact():
+    labels = np.zeros([11,11,11], dtype=bool)
+    labels[1:-1, 1:-1, 1:-1] = 1
+    point = [5,5,5]
+    normal = [0,0,1]
+
+    result, contact = xs3d.cross_sectional_area(labels, point, normal, return_contact=True)
+    assert contact == 0b00000000
+
+    labels = np.ones([11,11,11], dtype=bool)
+    result, contact = xs3d.cross_sectional_area(labels, point, normal, return_contact=True)
+    assert contact == 0b00001111
+
+    result, contact = xs3d.cross_sectional_area(labels, point, [0,1,0], return_contact=True)
+    assert contact == 0b00110011
+
+    result, contact = xs3d.cross_sectional_area(labels, point, [1,0,0], return_contact=True)
+    assert contact == 0b00111100
+
+    result, contact = xs3d.cross_sectional_area(labels, point, [1,1,1], return_contact=True)
+    assert contact == 0b00111111
+
+    result, contact = xs3d.cross_sectional_area(labels, [5,5,2], [1,1,1], return_contact=True)
+    assert contact == 0b00111111
+
+    result, contact = xs3d.cross_sectional_area(labels, [100,5,2], [1,1,1], return_contact=True)
+    assert contact == 0
+
+    labels = np.zeros([11,11,11], dtype=bool)
+    labels[1:-1, :, :] = 1
+
+    result, contact = xs3d.cross_sectional_area(labels, [5,5,5], [1,1,1], return_contact=True)
+    assert contact == 0b00111100
 
 
 
