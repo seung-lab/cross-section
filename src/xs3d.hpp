@@ -18,8 +18,6 @@ using namespace xs3d;
 
 namespace {
 
-static uint8_t _dummy_contact = false;
-
 // half rounded up
 uint64_t _h(uint64_t a) { 
 	return ((a+1) >> 1); 
