@@ -95,6 +95,22 @@ auto calculate_area(
 		? 1 
 		: binimg.shape()[2];
 
+	if (point.size() < 3) {
+	    throw py::value_error("point array must have at least 3 elements");
+	}
+
+	if (normal.size() < 3) {
+	    throw py::value_error("normal array must have at least 3 elements");
+	}
+
+	if (anisotropy.size() < 3) {
+	    throw py::value_error("anisotropy array must have at least 3 elements");
+	}
+
+	if (sx == 0 || sy == 0 || sz == 0) {
+	    throw py::value_error("All image dimensions must be > 0");
+	}
+
 	if (slow_method) {
 		return xs3d::cross_sectional_area_slow(
 			binimg.data(),
