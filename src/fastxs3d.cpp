@@ -108,7 +108,7 @@ auto calculate_area(
 	}
 
 	if (sx == 0 || sy == 0 || sz == 0) {
-	    throw py::value_error("All image dimensions must be > 0");
+	    return std::make_tuple(static_cast<float>(0.0), static_cast<uint8_t>(0));
 	}
 
 	if (slow_method) {
