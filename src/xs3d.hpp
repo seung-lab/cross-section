@@ -1570,7 +1570,7 @@ std::tuple<LABEL*, Bbox2d> cross_section_projection(
 		Vec3 delta = basis1 * dx + basis2 * dy;
 		Vec3 cur = pos + delta;
 
-		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
+		if (cur.x <= -0.5 || cur.y <= -0.5 || cur.z <= -0.5) {
 			continue;
 		}
 		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
