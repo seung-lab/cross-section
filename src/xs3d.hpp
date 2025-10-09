@@ -885,7 +885,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
+		if (cur.x <= -0.5 || cur.y <= -0.5 || cur.z <= -0.5) {
 			continue;
 		}
 		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
@@ -1039,7 +1039,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
+		if (cur.x <= -0.5 || cur.y <= -0.5 || cur.z <= -0.5) {
 			continue;
 		}
 		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
@@ -1193,7 +1193,7 @@ float cross_sectional_area_helper(
 
 		Vec3 cur = pos + basis1 * dx + basis2 * dy;
 
-		if (cur.x < -0.5 || cur.y < -0.5 || cur.z < -0.5) {
+		if (cur.x <= -0.5 || cur.y <= -0.5 || cur.z <= -0.5) {
 			continue;
 		}
 		else if (cur.x >= sxf || cur.y >= syf || cur.z >= szf) {
