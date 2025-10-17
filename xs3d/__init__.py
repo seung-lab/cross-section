@@ -23,7 +23,7 @@ def cross_sectional_area(
   point, and normal vector.
 
   labels: a 2d or 3d numpy image
-  segid: which label to consider foreground 
+  segid: which label to consider foreground (default 1 for boolean images)
   pos: the point in the image from which to extract the section
     must be an integer (it's an index into the image).
     e.g. [5,10,2]
