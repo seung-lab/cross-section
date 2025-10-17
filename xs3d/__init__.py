@@ -16,7 +16,7 @@ def cross_sectional_area(
   return_contact:bool = False,
   slow_method:bool = False,
   use_persistent_data:bool = False,
-  segid:int|float = 1,
+  segid:Optional[Union[int,float]] = None,
 ) -> Union[float, tuple[float, int]]:
   """
   Find the cross sectional area for a given binary image, 
@@ -66,6 +66,12 @@ def cross_sectional_area(
   pos = np.asarray(pos, dtype=np.float32)
   normal = np.asarray(normal, dtype=np.float32)
   anisotropy = np.asarray(anisotropy, dtype=np.float32)
+
+  if not np.issubdtype(labels.dtype, bool):
+    if segid is None:
+      raise ValueError(f"You must supply a segid for non-binary images.")
+  else:
+    segid = 1
 
   if np.any(anisotropy <= 0):
     raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
