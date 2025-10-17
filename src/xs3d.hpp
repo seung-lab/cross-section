@@ -23,8 +23,9 @@ uint64_t _h(uint64_t a) {
 	return ((a+1) >> 1); 
 };
 
+template <typename LABEL>
 uint8_t compute_cube(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const uint64_t x, const uint64_t y, const uint64_t z
 ) {
@@ -36,14 +37,14 @@ uint8_t compute_cube(
     const uint64_t z_valid = (z < sz - 1);
 
 	return static_cast<uint8_t>(
-		(binimg[loc] > 0)
-		| ((x_valid && (binimg[loc+1] > 0)) << 1)
-		| ((y_valid && (binimg[loc+sx] > 0)) << 2)
-		| (((x_valid && y_valid) && (binimg[loc+sx+1] > 0)) << 3)
-		| ((z_valid && (binimg[loc+sxy] > 0)) << 4)
-		| (((x_valid && z_valid) && (binimg[loc+sxy+1] > 0)) << 5)
-		| (((y_valid && z_valid) && (binimg[loc+sxy+sx] > 0)) << 6)
-		| (((x_valid && y_valid && z_valid) && (binimg[loc+sxy+sx+1] > 0)) << 7)
+		(labels[loc] == segid)
+		| ((x_valid && (labels[loc+1] == segid)) << 1)
+		| ((y_valid && (labels[loc+sx] == segid)) << 2)
+		| (((x_valid && y_valid) && (labels[loc+sx+1] == segid)) << 3)
+		| ((z_valid && (labels[loc+sxy] == segid)) << 4)
+		| (((x_valid && z_valid) && (labels[loc+sxy+1] == segid)) << 5)
+		| (((y_valid && z_valid) && (labels[loc+sxy+sx] == segid)) << 6)
+		| (((x_valid && y_valid && z_valid) && (labels[loc+sxy+sx+1] == segid)) << 7)
 	);
 }
 
@@ -439,8 +440,9 @@ float calc_area_at_point_2x2x2(
 	return area;
 }
 
+template <typename LABEL>
 float calc_area_at_point(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	std::vector<bool>& ccl,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
@@ -504,7 +506,7 @@ float calc_area_at_point(
 				if (loc < 0 || loc >= voxels) {
 					continue;
 				}
-				else if (!binimg[loc]) {
+				else if (labels[loc] != segid) {
 					continue;
 				}
 
@@ -645,8 +647,9 @@ bool is_26_connected(
 	}
 }
 
+template <typename LABEL>
 float robust_calc_area_at_point_2x2x2(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	std::vector<bool>& ccl,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
@@ -684,7 +687,7 @@ float robust_calc_area_at_point_2x2x2(
 		ze = 0;		
 	}
 
-	const uint8_t center = compute_cube(binimg, sx, sy, sz, x, y, z);
+	const uint8_t center = compute_cube(labels, segid, sx, sy, sz, x, y, z);
 
 	for (int64_t zi = zs; zi <= ze; zi += 2) {
 		for (int64_t yi = ys; yi <= ye; yi += 2) {
@@ -701,13 +704,13 @@ float robust_calc_area_at_point_2x2x2(
 					(static_cast<uint64_t>(delta.y) >> 1) + _h(sy) * (static_cast<uint64_t>(delta.z) >> 1)
 				);
 
-				if (!binimg[loc] || ccl[ccl_loc]) {
+				if ((labels[loc] != segid) || ccl[ccl_loc]) {
 					continue;
 				}
 				
 				ccl[ccl_loc] = true;
 					
-				uint8_t candidate = compute_cube(binimg, sx, sy, sz, x + xi, y + yi, z + zi);
+				uint8_t candidate = compute_cube(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi);
 
 				if (is_26_connected(center, candidate, xi, yi, zi)) {
 					subtotal += calc_area_at_point_2x2x2(
@@ -725,8 +728,9 @@ float robust_calc_area_at_point_2x2x2(
 	return subtotal;
 }
 
+template <typename LABEL>
 float robust_calc_area_at_point_2x2x2_persistent_data(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& cur, const Vec3& pos, 
 	const Vec3& normal, const Vec3& anisotropy,
@@ -763,7 +767,7 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 		ze = 0;		
 	}
 
-	const uint8_t center = compute_cube(binimg, sx, sy, sz, x, y, z);
+	const uint8_t center = compute_cube(labels, segid, sx, sy, sz, x, y, z);
 	std::vector<uint8_t>& visited = persistent_data.visited;
 	const uint8_t color = persistent_data.color;
 
@@ -782,13 +786,13 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 					(static_cast<uint64_t>(delta.y) >> 1) + _h(sy) * (static_cast<uint64_t>(delta.z) >> 1)
 				);
 
-				if (!binimg[loc] || visited[visited_loc] == color) {
+				if ((labels[loc] != segid) || visited[visited_loc] == color) {
 					continue;
 				}
 				
 				visited[visited_loc] = color;
 				
-				const uint8_t candidate = compute_cube(binimg, sx, sy, sz, x + xi, y + yi, z + zi);
+				const uint8_t candidate = compute_cube(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi);
 
 				if (is_26_connected(center, candidate, xi, yi, zi)) {
 					subtotal += calc_area_at_point_2x2x2(
@@ -806,8 +810,9 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 	return subtotal;
 }
 
+template <typename LABEL>
 std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
@@ -902,7 +907,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 			)
 		);
 
-		if (!binimg[loc]) {
+		if (labels[loc] != segid) {
 			continue;
 		}
 
@@ -949,8 +954,8 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 			stack.push(downright);
 		}
 
-		total += robust_calc_area_at_point_2x2x2(
-			binimg, ccl,
+		total += robust_calc_area_at_point_2x2x2<LABEL>(
+			labels, segid, ccl,
 			sx, sy, sz,
 			cur, pos, normal, anisotropy,
 			pts, projections, inv_projections
@@ -960,8 +965,9 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2(
 	return std::make_tuple(total, contact);
 }
 
+template <typename LABEL>
 std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
@@ -1056,7 +1062,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
 			)
 		);
 
-		if (!binimg[loc]) {
+		if (labels[loc] != segid) {
 			continue;
 		}
 
@@ -1104,7 +1110,7 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
 		}
 
 		total += robust_calc_area_at_point_2x2x2_persistent_data(
-			binimg,
+			labels, segid,
 			sx, sy, sz,
 			cur, pos, normal, anisotropy,
 			pts, projections, inv_projections
@@ -1114,9 +1120,9 @@ std::tuple<float, uint8_t> cross_sectional_area_helper_2x2x2_persistent_data(
 	return std::make_tuple(total, contact);
 }
 
-
+template <typename LABEL>
 float cross_sectional_area_helper(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	const Vec3& pos, // plane position
 	const Vec3& normal, // plane normal vector
@@ -1208,7 +1214,7 @@ float cross_sectional_area_helper(
 			)
 		);
 
-		if (!binimg[loc]) {
+		if (labels[loc] != segid) {
 			continue;
 		}
 
@@ -1256,7 +1262,7 @@ float cross_sectional_area_helper(
 		}
 
 		total += calc_area_at_point(
-			binimg, ccl,
+			labels, segid, ccl,
 			sx, sy, sz,
 			cur, pos, normal, anisotropy,
 			pts, projections, inv_projections,
@@ -1302,8 +1308,9 @@ void clear_shape() {
 	persistent_data.clear();
 }
 
+template <typename LABEL>
 std::tuple<float, uint8_t> cross_sectional_area(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
 	const float px, const float py, const float pz,
@@ -1340,7 +1347,7 @@ std::tuple<float, uint8_t> cross_sectional_area(
 	if (loc < 0 || loc >= sx * sy * sz) {
 		return std::make_tuple(0.0, 0);
 	}
-	else if (!binimg[loc]) {
+	else if (labels[loc] != segid) {
 		return std::make_tuple(0.0, 0);
 	}
 
@@ -1349,15 +1356,15 @@ std::tuple<float, uint8_t> cross_sectional_area(
 	normal /= normal.norm();
 
 	if (use_persistent_data) {
-		return cross_sectional_area_helper_2x2x2_persistent_data(
-			binimg, 
+		return cross_sectional_area_helper_2x2x2_persistent_data<LABEL>(
+			labels, segid,
 			sx, sy, sz, 
 			pos, normal, anisotropy
 		);
 	}
 	else {
-		return cross_sectional_area_helper_2x2x2(
-			binimg, 
+		return cross_sectional_area_helper_2x2x2<LABEL>(
+			labels, segid,
 			sx, sy, sz, 
 			pos, normal, anisotropy
 		);
@@ -1416,7 +1423,7 @@ std::tuple<float*, uint8_t> cross_section(
 	normal /= normal.norm();
 
 	cross_sectional_area_helper(
-		binimg, 
+		binimg, /*segid=*/static_cast<uint8_t>(1),
 		sx, sy, sz, 
 		pos, normal, anisotropy,
 		contact, plane_visualization

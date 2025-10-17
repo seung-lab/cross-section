@@ -9,19 +9,21 @@ import numpy.typing as npt
 
 
 def cross_sectional_area(
-  binimg:npt.NDArray[np.bool_],
+  labels:npt.NDArray[np.number],
   pos:POINT_T,
   normal:VECTOR_T,
   anisotropy:Optional[VECTOR_T] = None,
   return_contact:bool = False,
   slow_method:bool = False,
   use_persistent_data:bool = False,
+  segid:int|float = 1,
 ) -> Union[float, tuple[float, int]]:
   """
   Find the cross sectional area for a given binary image, 
   point, and normal vector.
 
-  binimg: a binary 2d or 3d numpy image (e.g. a bool datatype)
+  labels: a 2d or 3d numpy image
+  segid: which label to consider foreground 
   pos: the point in the image from which to extract the section
     must be an integer (it's an index into the image).
     e.g. [5,10,2]
@@ -58,15 +60,15 @@ def cross_sectional_area(
   """
   if anisotropy is None:
     anisotropy = (1.0, 1.0, 1.0)
-    if binimg.ndim == 2:
+    if labels.ndim == 2:
       anisotropy = (1.0, 1.0)
 
   pos = np.asarray(pos, dtype=np.float32)
   normal = np.asarray(normal, dtype=np.float32)
   anisotropy = np.asarray(anisotropy, dtype=np.float32)
 
-  if binimg.dtype != bool:
-    raise ValueError(f"A boolean image is required. Got: {binimg.dtype}")
+  if labels.dtype != bool:
+    raise ValueError(f"A boolean image is required. Got: {labels.dtype}")
 
   if np.any(anisotropy <= 0):
     raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
@@ -74,13 +76,13 @@ def cross_sectional_area(
   if np.all(normal == 0):
     raise ValueError("normal vector must not be a null vector (all zeros).")
 
-  binimg = np.asfortranarray(binimg)
+  labels = np.asfortranarray(labels)
 
-  if binimg.ndim == 2:
-    area, contact = cross_sectional_area_2d(binimg, pos, normal, anisotropy)
-  elif binimg.ndim == 3:
+  if labels.ndim == 2:
+    area, contact = cross_sectional_area_2d(labels, pos, normal, anisotropy)
+  elif labels.ndim == 3:
     area, contact = fastxs3d.area(
-      binimg.view(np.uint8),
+      labels, segid,
       pos, normal, anisotropy, 
       slow_method, use_persistent_data,
     )
