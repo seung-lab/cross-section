@@ -190,8 +190,9 @@ std::tuple<float*, uint8_t> cross_section_slow(
  * connected component, so pre-filtering must be performed to 
  * ensure a match.
  */
+template <typename LABEL>
 std::tuple<float, uint8_t> cross_sectional_area_slow(
-	const uint8_t* binimg,
+	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
 	
 	const float px, const float py, const float pz,
@@ -239,7 +240,7 @@ std::tuple<float, uint8_t> cross_sectional_area_slow(
 			for (uint64_t x = 0; x < sx; x++) {
 				uint64_t loc = x + sx * (y + sy * z);
 
-				if (!binimg[loc]) {
+				if (labels[loc] != segid) {
 					continue;
 				}
 

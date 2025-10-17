@@ -79,21 +79,23 @@ auto section(
 	return std::make_tuple(arr, std::get<1>(tup));
 }
 
+template <typename LABEL>
 auto calculate_area(
-	const py::array_t<uint8_t> &binimg,
+	const py::array_t<LABEL> &image,
+	const LABEL segid,
 	const py::array_t<float> &point,
 	const py::array_t<float> &normal,
 	const py::array_t<float> &anisotropy,
 	const bool slow_method,
 	const bool use_persistent_data
 ) {
-	const uint64_t sx = binimg.shape()[0];
-	const uint64_t sy = binimg.ndim() < 2
+	const uint64_t sx = image.shape()[0];
+	const uint64_t sy = image.ndim() < 2
 		? 1 
-		: binimg.shape()[1];
-	const uint64_t sz = binimg.ndim() < 3 
+		: image.shape()[1];
+	const uint64_t sz = image.ndim() < 3 
 		? 1 
-		: binimg.shape()[2];
+		: image.shape()[2];
 
 	if (point.size() < 3) {
 	    throw py::value_error("point array must have at least 3 elements");
@@ -112,8 +114,8 @@ auto calculate_area(
 	}
 
 	if (slow_method) {
-		return xs3d::cross_sectional_area_slow(
-			binimg.data(),
+		return xs3d::cross_sectional_area_slow<LABEL>(
+			image.data(), segid,
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
@@ -121,8 +123,8 @@ auto calculate_area(
 		);
 	}
 	else {
-		return xs3d::cross_sectional_area(
-			binimg.data(),
+		return xs3d::cross_sectional_area<LABEL>(
+			image.data(), segid,
 			sx, sy, sz,
 			point.at(0), point.at(1), point.at(2),
 			normal.at(0), normal.at(1), normal.at(2),
@@ -231,12 +233,29 @@ auto projection(
     }
 }
 
+
+#define REGISTER_CALCULATE_AREA_FOR_TYPE(T) \
+    m.def("area", &calculate_area<T>, "Find the cross sectional area for a given image, point, and normal vector.");
+
 PYBIND11_MODULE(fastxs3d, m) {
 	m.doc() = "Finding cross sectional area in 3D voxelized images."; 
 	m.def("projection", &projection, "Project a cross section of a 3D image onto a 2D plane");
 	m.def("section", &section, "Return a floating point image that shows the voxels contributing area to a cross section.");
-	m.def("area", &calculate_area, "Find the cross sectional area for a given binary image, point, and normal vector.");
+
+	REGISTER_CALCULATE_AREA_FOR_TYPE(bool)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(uint8_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(uint16_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(uint32_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(uint64_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(int8_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(int16_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(int32_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(int64_t)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(float)
+	REGISTER_CALCULATE_AREA_FOR_TYPE(double)
 	
 	m.def("set_shape", &xs3d::set_shape, "Accelerate the area function across many evaluation points by saving some attributes of the input shape upfront. Call clear_shape when you are done.");
 	m.def("clear_shape", &xs3d::clear_shape, "Delete the data that was persisted by set_shape.");
 }
+
+#undef REGISTER_CALCULATE_AREA_FOR_TYPE
