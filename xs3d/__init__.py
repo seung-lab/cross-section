@@ -67,9 +67,6 @@ def cross_sectional_area(
   normal = np.asarray(normal, dtype=np.float32)
   anisotropy = np.asarray(anisotropy, dtype=np.float32)
 
-  if labels.dtype != bool:
-    raise ValueError(f"A boolean image is required. Got: {labels.dtype}")
-
   if np.any(anisotropy <= 0):
     raise ValueError(f"anisotropy values must be > 0. Got: {anisotropy}")
 
