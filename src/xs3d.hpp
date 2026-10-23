@@ -45,9 +45,9 @@ uint8_t compute_cube(
 		);
 	}
 	else {
-	    const uint64_t x_valid = (x < sx - 1);
-	    const uint64_t y_valid = (y < sy - 1);
-	    const uint64_t z_valid = (z < sz - 1);
+		const uint64_t x_valid = (x < sx - 1);
+		const uint64_t y_valid = (y < sy - 1);
+		const uint64_t z_valid = (z < sz - 1);
 
 		return static_cast<uint8_t>(
 			(labels[loc] == segid)
