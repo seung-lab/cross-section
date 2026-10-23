@@ -702,9 +702,9 @@ float robust_calc_area_at_point_2x2x2(
 	}
 
 	const bool interior = (
-		cur.x < sx - 3 && 
-		cur.y < sy - 3 && 
-		cur.z < sz - 3
+		cur.x + 3 < sx && 
+		cur.y + 3 < sy && 
+		cur.z + 3 < sz
 	);
 
 	const uint8_t center = interior
@@ -792,9 +792,9 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 	}
 
 	const bool interior = (
-		cur.x < sx - 3 && 
-		cur.y < sy - 3 && 
-		cur.z < sz - 3
+		cur.x + 3 < sx && 
+		cur.y + 3 < sy && 
+		cur.z + 3 < sz
 	);
 
 	const uint8_t center = interior
