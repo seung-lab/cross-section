@@ -23,7 +23,7 @@ uint64_t _h(uint64_t a) {
 	return ((a+1) >> 1); 
 };
 
-template <typename LABEL>
+template <typename LABEL, bool Interior>
 uint8_t compute_cube(
 	const LABEL* labels, const LABEL segid,
 	const uint64_t sx, const uint64_t sy, const uint64_t sz,
@@ -32,20 +32,34 @@ uint8_t compute_cube(
 	const uint64_t sxy = sx * sy;
 	const uint64_t loc = x + sx * (y + sy * z);
 
-    const uint64_t x_valid = (x < sx - 1);
-    const uint64_t y_valid = (y < sy - 1);
-    const uint64_t z_valid = (z < sz - 1);
+	if constexpr (Interior) {
+		return static_cast<uint8_t>(
+			(labels[loc] == segid)
+			| ((labels[loc+1] == segid) << 1)
+			| ((labels[loc+sx] == segid) << 2)
+			| ((labels[loc+sx+1] == segid) << 3)
+			| ((labels[loc+sxy] == segid) << 4)
+			| ((labels[loc+sxy+1] == segid) << 5)
+			| ((labels[loc+sxy+sx] == segid) << 6)
+			| ((labels[loc+sxy+sx+1] == segid) << 7)
+		);
+	}
+	else {
+		const uint64_t x_valid = (x < sx - 1);
+		const uint64_t y_valid = (y < sy - 1);
+		const uint64_t z_valid = (z < sz - 1);
 
-	return static_cast<uint8_t>(
-		(labels[loc] == segid)
-		| ((x_valid && (labels[loc+1] == segid)) << 1)
-		| ((y_valid && (labels[loc+sx] == segid)) << 2)
-		| (((x_valid && y_valid) && (labels[loc+sx+1] == segid)) << 3)
-		| ((z_valid && (labels[loc+sxy] == segid)) << 4)
-		| (((x_valid && z_valid) && (labels[loc+sxy+1] == segid)) << 5)
-		| (((y_valid && z_valid) && (labels[loc+sxy+sx] == segid)) << 6)
-		| (((x_valid && y_valid && z_valid) && (labels[loc+sxy+sx+1] == segid)) << 7)
-	);
+		return static_cast<uint8_t>(
+			(labels[loc] == segid)
+			| ((x_valid && (labels[loc+1] == segid)) << 1)
+			| ((y_valid && (labels[loc+sx] == segid)) << 2)
+			| (((x_valid && y_valid) && (labels[loc+sx+1] == segid)) << 3)
+			| ((z_valid && (labels[loc+sxy] == segid)) << 4)
+			| (((x_valid && z_valid) && (labels[loc+sxy+1] == segid)) << 5)
+			| (((y_valid && z_valid) && (labels[loc+sxy+sx] == segid)) << 6)
+			| (((x_valid && y_valid && z_valid) && (labels[loc+sxy+sx+1] == segid)) << 7)
+		);
+	}
 }
 
 struct PersistentShapeManager {
@@ -687,7 +701,15 @@ float robust_calc_area_at_point_2x2x2(
 		ze = 0;		
 	}
 
-	const uint8_t center = compute_cube(labels, segid, sx, sy, sz, x, y, z);
+	const bool interior = (
+		cur.x + 3 < sx && 
+		cur.y + 3 < sy && 
+		cur.z + 3 < sz
+	);
+
+	const uint8_t center = interior
+		? compute_cube<LABEL, true>(labels, segid, sx, sy, sz, x, y, z)
+		: compute_cube<LABEL, false>(labels, segid, sx, sy, sz, x, y, z);
 
 	for (int64_t zi = zs; zi <= ze; zi += 2) {
 		for (int64_t yi = ys; yi <= ye; yi += 2) {
@@ -710,7 +732,9 @@ float robust_calc_area_at_point_2x2x2(
 				
 				ccl[ccl_loc] = true;
 					
-				uint8_t candidate = compute_cube(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi);
+				const uint8_t candidate = interior
+					? compute_cube<LABEL, true>(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi)
+					: compute_cube<LABEL, false>(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi);
 
 				if (is_26_connected(center, candidate, xi, yi, zi)) {
 					subtotal += calc_area_at_point_2x2x2(
@@ -767,7 +791,16 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 		ze = 0;		
 	}
 
-	const uint8_t center = compute_cube(labels, segid, sx, sy, sz, x, y, z);
+	const bool interior = (
+		cur.x + 3 < sx && 
+		cur.y + 3 < sy && 
+		cur.z + 3 < sz
+	);
+
+	const uint8_t center = interior
+		? compute_cube<LABEL, true>(labels, segid, sx, sy, sz, x, y, z)
+		: compute_cube<LABEL, false>(labels, segid, sx, sy, sz, x, y, z);
+
 	std::vector<uint8_t>& visited = persistent_data.visited;
 	const uint8_t color = persistent_data.color;
 
@@ -792,7 +825,9 @@ float robust_calc_area_at_point_2x2x2_persistent_data(
 				
 				visited[visited_loc] = color;
 				
-				const uint8_t candidate = compute_cube(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi);
+				const uint8_t candidate = interior
+					? compute_cube<LABEL, true>(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi)
+					: compute_cube<LABEL, false>(labels, segid, sx, sy, sz, x + xi, y + yi, z + zi);
 
 				if (is_26_connected(center, candidate, xi, yi, zi)) {
 					subtotal += calc_area_at_point_2x2x2(
