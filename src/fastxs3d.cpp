@@ -113,22 +113,38 @@ auto calculate_area(
 	    return std::make_tuple(static_cast<float>(0.0), static_cast<uint8_t>(0));
 	}
 
+	const LABEL* image_ptr = image.data();
+	
+	const float ptx = point.at(0);
+	const float pty = point.at(1);
+	const float ptz = point.at(2);
+
+	const float nx = normal.at(0);
+	const float ny = normal.at(1);
+	const float nz = normal.at(2);
+
+	const float wx = anisotropy.at(0);
+	const float wy = anisotropy.at(1);
+	const float wz = anisotropy.at(2);
+
 	if (slow_method) {
+		py::gil_scoped_release release;
 		return xs3d::cross_sectional_area_slow<LABEL>(
-			image.data(), segid,
+			image_ptr, segid,
 			sx, sy, sz,
-			point.at(0), point.at(1), point.at(2),
-			normal.at(0), normal.at(1), normal.at(2),
-			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2)
+			ptx, pty, ptz,
+			nx, ny, nz,
+			wx, wy, wz
 		);
 	}
 	else {
+		py::gil_scoped_release release;
 		return xs3d::cross_sectional_area<LABEL>(
-			image.data(), segid,
+			image_ptr, segid,
 			sx, sy, sz,
-			point.at(0), point.at(1), point.at(2),
-			normal.at(0), normal.at(1), normal.at(2),
-			anisotropy.at(0), anisotropy.at(1), anisotropy.at(2),
+			ptx, pty, ptz,
+			nx, ny, nz,
+			wx, wy, wz,
 			use_persistent_data
 		);
 	}
