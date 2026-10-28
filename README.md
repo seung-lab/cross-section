@@ -72,7 +72,7 @@ A superior measure would be the cross sectional area using a section plane that 
 
 # How Does it Work?
 
-The algorithm roughly works as follows.
+The algorithm conceptually works as follows, though there are many optimizations.
 
 1. Label voxels that are intercepted by the sectioning plane.
 2. Label the connected components of those voxels.
